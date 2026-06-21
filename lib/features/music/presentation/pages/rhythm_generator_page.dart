@@ -1,10 +1,10 @@
-import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
-import '../../../../models/rhythm_pattern.dart';
-import '../../../../services/pattern_repository.dart';
+import '../../../../models/rhythm_element.dart';
+import '../../../../services/rhythm_generator_service.dart';
+import '../../../../services/rhythm_playback_service.dart';
+import '../widgets/rhythm_staff_painter.dart';
 
 class RhythmGeneratorPage extends StatefulWidget {
   const RhythmGeneratorPage({super.key});
@@ -13,471 +13,638 @@ class RhythmGeneratorPage extends StatefulWidget {
   State<RhythmGeneratorPage> createState() => _RhythmGeneratorPageState();
 }
 
-class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> with SingleTickerProviderStateMixin {
-  final List<RhythmPattern> _availablePatterns = PatternRepository().patterns;
-  RhythmPattern? _selectedPattern;
+class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
+  // Servizi
+  late RhythmPlaybackService _playbackService;
+  List<RhythmMeasure> _generatedMeasures = [];
 
-  // Sequencer State
-  late List<bool> _beats;
-  late List<String> _notes;
+  // Controlli Configurazione
   int _bpm = 120;
-  double _baseFrequency = 440.0;
+  String _selectedTimeSignature = '4/4';
+  int _measuresCount = 4;
   
-  bool _isPlaying = false;
-  int _currentStep = -1;
-  Timer? _sequencerTimer;
+  // Abilitazione Figure Ritmiche
+  final Map<RhythmElementType, bool> _enabledFigures = {
+    RhythmElementType.quarter: true,
+    RhythmElementType.eighth: true,
+    RhythmElementType.sixteenth: false,
+    RhythmElementType.quarterRest: true,
+    RhythmElementType.eighthRest: false,
+    RhythmElementType.sixteenthRest: false,
+    RhythmElementType.triplet: false,
+  };
 
-  // Wave Visualizer Animation
-  late AnimationController _waveController;
+  // Controller UI e Scroll
+  late TextEditingController _bpmTextController;
+  final ScrollController _staffScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Default to the first pattern
-    if (_availablePatterns.isNotEmpty) {
-      _selectedPattern = _availablePatterns.first;
-      _loadPattern(_selectedPattern!);
-    } else {
-      _beats = List.generate(16, (_) => false);
-      _notes = List.generate(16, (_) => 'C4');
-    }
+    _playbackService = RhythmPlaybackService();
+    _playbackService.updateSettings(bpm: _bpm);
+    
+    _bpmTextController = TextEditingController(text: _bpm.toString());
 
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
+    // Ascolta gli aggiornamenti di riproduzione (highlight note e scroll automatico)
+    _playbackService.addListener(_onPlaybackStateChanged);
+
+    // Genera un ritmo iniziale predefinito
+    _generateNewRhythm();
   }
 
   @override
   void dispose() {
-    _sequencerTimer?.cancel();
-    _waveController.dispose();
+    _playbackService.removeListener(_onPlaybackStateChanged);
+    _playbackService.stop();
+    _playbackService.dispose();
+    _bpmTextController.dispose();
+    _staffScrollController.dispose();
     super.dispose();
   }
 
-  void _loadPattern(RhythmPattern pattern) {
-    setState(() {
-      _beats = List<bool>.from(pattern.beats);
-      _notes = List<String>.from(pattern.notes);
-      _bpm = pattern.bpm;
-      _baseFrequency = pattern.baseFrequency;
-      if (_isPlaying) {
-        _stopSequencer();
-        _startSequencer();
-      }
-    });
+  /// Gestore dei cambiamenti dello stato di riproduzione (timer audio/notifica UI)
+  void _onPlaybackStateChanged() {
+    if (!mounted) return;
+    
+    setState(() {});
+
+    // Gestione dello scorrimento automatico (Auto-Scroll) sul pentagramma
+    if (_playbackService.isPlaying && 
+        _playbackService.currentMeasureIndex >= 0 && 
+        _playbackService.currentElementIndex >= 0) {
+      
+      final double targetX = _calculateNoteXCoordinate(
+        measureIndex: _playbackService.currentMeasureIndex,
+        elementIndex: _playbackService.currentElementIndex,
+      );
+
+      final double screenWidth = MediaQuery.of(context).size.width;
+      
+      // Calcola l'offset di scroll desiderato per centrare la nota attiva sullo schermo
+      double scrollOffset = targetX - (screenWidth / 2);
+      
+      // Limita lo scroll all'interno dei confini validi
+      if (scrollOffset < 0) scrollOffset = 0.0;
+      final maxScroll = _staffScrollController.position.maxScrollExtent;
+      if (scrollOffset > maxScroll) scrollOffset = maxScroll;
+
+      // Anima lo scorrimento del pentagramma in modo fluido a 60 FPS
+      _staffScrollController.animateTo(
+        scrollOffset,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
-  void _togglePlay() {
-    setState(() {
-      _isPlaying = !_isPlaying;
-      if (_isPlaying) {
-        _startSequencer();
-        _waveController.repeat();
-      } else {
-        _stopSequencer();
-        _waveController.stop();
+  /// Calcola la coordinata X esatta di una nota sul pentagramma per l'auto-scroll.
+  double _calculateNoteXCoordinate({required int measureIndex, required int elementIndex}) {
+    // 20 (padding) + 45 (chiave) + 35 (tempo)
+    double x = 100.0;
+    
+    // Somma la larghezza delle battute precedenti
+    for (int m = 0; m < measureIndex; m++) {
+      x += _getMeasureWidth(_generatedMeasures[m].timeSignature);
+    }
+
+    // Calcola l'offset all'interno della battuta corrente
+    if (measureIndex < _generatedMeasures.length) {
+      final measure = _generatedMeasures[measureIndex];
+      final double measureWidth = _getMeasureWidth(measure.timeSignature);
+      final double beatsPerMeasure = _getTargetBeats(measure.timeSignature);
+
+      double elapsedBeats = 0.0;
+      for (int e = 0; e < elementIndex; e++) {
+        elapsedBeats += measure.elements[e].duration;
       }
-    });
+
+      // Proporzione X all'interno della battuta
+      x += (elapsedBeats / beatsPerMeasure) * (measureWidth - 30.0) + 15.0;
+    }
+
+    return x;
   }
 
-  void _startSequencer() {
-    final intervalMs = (60000 / _bpm / 4).round(); // 16th notes
-    _sequencerTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
+  double _getMeasureWidth(String timeSig) {
+    if (timeSig == '4/4') return 240.0;
+    if (timeSig == '3/4') return 180.0;
+    if (timeSig == '6/8') return 200.0;
+    return 240.0;
+  }
+
+  double _getTargetBeats(String timeSig) {
+    if (timeSig == '4/4') return 4.0;
+    if (timeSig == '3/4') return 3.0;
+    if (timeSig == '6/8') return 3.0;
+    return 4.0;
+  }
+
+  /// Genera un nuovo ritmo valido.
+  void _generateNewRhythm() {
+    _playbackService.stop();
+
+    final measures = RhythmGeneratorService.generate(
+      timeSignature: _selectedTimeSignature,
+      measuresCount: _measuresCount,
+      enabledFigures: _enabledFigures,
+    );
+
+    setState(() {
+      _generatedMeasures = measures;
+    });
+
+    // Invia la timeline degli eventi al riproduttore ad alta precisione
+    _playbackService.preparePlayback(_generatedMeasures);
+    
+    // Resetta lo scorrimento del pentagramma all'inizio
+    if (_staffScrollController.hasClients) {
+      _staffScrollController.jumpTo(0.0);
+    }
+  }
+
+  /// Sincronizza il BPM quando l'utente usa il tastierino numerico.
+  void _onBpmTextChanged(String val) {
+    final parsed = int.tryParse(val);
+    if (parsed != null && parsed >= 40 && parsed <= 240) {
       setState(() {
-        _currentStep = (_currentStep + 1) % 16;
-        // Trigger sound simulation or pulse animation
+        _bpm = parsed;
       });
-    });
+      _playbackService.updateSettings(bpm: _bpm);
+    }
   }
 
-  void _stopSequencer() {
-    _sequencerTimer?.cancel();
+  /// Sincronizza il BPM quando l'utente trascina lo Slider.
+  void _onBpmSliderChanged(double val) {
     setState(() {
-      _currentStep = -1;
+      _bpm = val.toInt();
+      _bpmTextController.text = _bpm.toString();
     });
-  }
-
-  void _updateBpm(int newBpm) {
-    setState(() {
-      _bpm = newBpm;
-      if (_isPlaying) {
-        _stopSequencer();
-        _startSequencer();
-      }
-    });
-  }
-
-  void _randomizeNotes() {
-    final scale = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5', 'G5', 'A5'];
-    final rand = math.Random();
-    setState(() {
-      for (int i = 0; i < 16; i++) {
-        _notes[i] = scale[rand.nextInt(scale.length)];
-      }
-    });
-  }
-
-  void _randomizeRhythm() {
-    final rand = math.Random();
-    setState(() {
-      for (int i = 0; i < 16; i++) {
-        _beats[i] = rand.nextBool();
-      }
-    });
-  }
-
-  void _toggleStep(int index) {
-    setState(() {
-      _beats[index] = !_beats[index];
-    });
+    _playbackService.updateSettings(bpm: _bpm);
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isTablet = size.width >= 600;
+
+    // Calcoliamo la larghezza totale del Canvas del pentagramma per permettere lo scorrimento
+    double staffTotalWidth = 100.0; // Chiave + Tempo iniziali
+    for (final measure in _generatedMeasures) {
+      staffTotalWidth += _getMeasureWidth(measure.timeSignature);
+    }
+    staffTotalWidth += 40.0; // Spazio extra finale
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Generatore Automatico', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Random Rhythm Generator',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
       ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: AppTheme.backgroundGradient,
         child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Pattern Selector Card
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: AppTheme.glassCardDecoration(borderRadius: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Scegli o Carica Ritmica',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
-                          ),
-                          const SizedBox(height: 10),
-                          DropdownButtonFormField<RhythmPattern>(
-                            value: _selectedPattern,
-                            dropdownColor: const Color(0xFF1E293B),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              fillColor: Colors.black.withOpacity(0.2),
-                            ),
-                            items: _availablePatterns.map((pat) {
-                              return DropdownMenuItem<RhythmPattern>(
-                                value: pat,
-                                child: Text(pat.name),
-                              );
-                            }).toList(),
-                            onChanged: (pat) {
-                              if (pat != null) {
-                                setState(() {
-                                  _selectedPattern = pat;
-                                });
-                                _loadPattern(pat);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Oscilloscope Wave Visualizer
-                Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.cardBorder, width: 1.5),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: AnimatedBuilder(
-                      animation: _waveController,
-                      builder: (context, child) {
-                        return CustomPaint(
-                          painter: WavePainter(
-                            animationValue: _waveController.value,
-                            isPlaying: _isPlaying,
-                            bpm: _bpm,
-                            frequency: _baseFrequency,
-                            currentStep: _currentStep,
-                            beats: _beats,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Playback and Speed Controls
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: AppTheme.glassCardDecoration(borderRadius: 16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: Column(
+            children: [
+              // Area impostazioni (superiore su mobile, laterale su tablet)
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                  child: isTablet
+                      ? IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Play Pause Button
-                              ElevatedButton.icon(
-                                onPressed: _togglePlay,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _isPlaying ? AppTheme.accentPink : AppTheme.secondaryCyan,
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                              // CONFIGURAZIONE TEMPO & BATTUTE
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildBpmSelectorCard(),
+                                    const SizedBox(height: 16),
+                                    _buildSignatureAndMeasuresCard(),
+                                  ],
                                 ),
-                                icon: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
-                                label: Text(_isPlaying ? 'PAUSA' : 'RIPRODUCI'),
+                              ),
+                              const SizedBox(width: 20),
+                              // SELEZIONE FIGURE RITMICHE
+                              Expanded(
+                                child: _buildRhythmFiguresCard(),
                               ),
                             ],
                           ),
-                          const Divider(height: 30, color: AppTheme.cardBorder),
-                          // BPM Slider
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Tempo (BPM)', style: TextStyle(color: AppTheme.textSecondary)),
-                              Text('$_bpm BPM', style: const TextStyle(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold)),
-                            ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // CONFIGURAZIONE TEMPO & BATTUTE
+                            _buildBpmSelectorCard(),
+                            const SizedBox(height: 16),
+                            _buildSignatureAndMeasuresCard(),
+                            const SizedBox(height: 16),
+                            // SELEZIONE FIGURE RITMICHE
+                            _buildRhythmFiguresCard(),
+                          ],
+                        ),
+                ),
+              ),
+
+              // AREA PENTAGRAMMA E CONTROLLI PLAYER (Ancorati in basso)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.4),
+                  border: const Border(
+                    top: BorderSide(color: AppTheme.cardBorder, width: 1.5),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Il Pentagramma Scorrevole
+                    Container(
+                      height: 120,
+                      margin: const EdgeInsets.symmetric(horizontal: 20.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B).withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.cardBorder, width: 1.5),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SingleChildScrollView(
+                          controller: _staffScrollController,
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: CustomPaint(
+                            size: Size(staffTotalWidth, 120),
+                            painter: RhythmStaffPainter(
+                              measures: _generatedMeasures,
+                              activeMeasureIndex: _playbackService.currentMeasureIndex,
+                              activeElementIndex: _playbackService.currentElementIndex,
+                              activeTripletIndex: _playbackService.currentTripletIndex,
+                            ),
                           ),
-                          Slider(
-                            value: _bpm.toDouble(),
-                            min: 60,
-                            max: 200,
-                            activeColor: AppTheme.primaryPurple,
-                            inactiveColor: AppTheme.cardBorder,
-                            onChanged: (val) => _updateBpm(val.toInt()),
-                          ),
-                          // Frequency Slider
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Frequenza Base', style: TextStyle(color: AppTheme.textSecondary)),
-                              Text('${_baseFrequency.toStringAsFixed(1)} Hz', style: const TextStyle(color: AppTheme.secondaryCyan, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          Slider(
-                            value: _baseFrequency,
-                            min: 100,
-                            max: 1000,
-                            activeColor: AppTheme.secondaryCyan,
-                            inactiveColor: AppTheme.cardBorder,
-                            onChanged: (val) {
-                              setState(() {
-                                _baseFrequency = val;
-                              });
-                            },
-                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Pannello di Controllo Riproduzione
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Row(
+                        children: [
+                          // Dropdown Strumento
+                          _buildInstrumentSelector(),
+                          const Spacer(),
+
+                          // Controlli di Riproduzione
+                          _buildPlaybackControls(),
+                          const Spacer(),
+
+                          // Interruttore Metronomo
+                          _buildMetronomeToggle(),
                         ],
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
+                    const SizedBox(height: 12),
 
-                // Randomizers & Title
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Sequencer Ritmico',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    Row(
-                      children: [
-                        TextButton.icon(
-                          onPressed: _randomizeRhythm,
-                          icon: const Icon(Icons.shuffle_rounded, size: 16, color: AppTheme.secondaryCyan),
-                          label: const Text('Ritmica', style: TextStyle(color: AppTheme.secondaryCyan, fontSize: 12)),
+                    // Pulsante Genera
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _generateNewRhythm,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.secondaryCyan,
+                            shadowColor: AppTheme.secondaryCyan.withOpacity(0.3),
+                            elevation: 8,
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.shuffle_rounded, color: Colors.white),
+                              SizedBox(width: 10),
+                              Text('GENERATE RHYTHM'),
+                            ],
+                          ),
                         ),
-                        TextButton.icon(
-                          onPressed: _randomizeNotes,
-                          icon: const Icon(Icons.music_note_rounded, size: 16, color: AppTheme.primaryPurple),
-                          label: const Text('Note', style: TextStyle(color: AppTheme.primaryPurple, fontSize: 12)),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // Interactive 16-Step Sequencer
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 1.1,
-                  ),
-                  itemCount: 16,
-                  itemBuilder: (context, index) {
-                    final isActive = _beats[index];
-                    final isCurrent = _currentStep == index;
-                    final note = _notes[index];
-
-                    return GestureDetector(
-                      onTap: () => _toggleStep(index),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 100),
-                        decoration: BoxDecoration(
-                          color: isCurrent 
-                              ? (isActive ? AppTheme.accentPink : AppTheme.secondaryCyan.withOpacity(0.3))
-                              : (isActive ? AppTheme.primaryPurple : Colors.black.withOpacity(0.3)),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isCurrent 
-                                ? Colors.white 
-                                : (isActive ? AppTheme.primaryPurple : AppTheme.cardBorder),
-                            width: 1.5,
-                          ),
-                          boxShadow: isCurrent || isActive
-                              ? [
-                                  BoxShadow(
-                                    color: (isCurrent ? AppTheme.accentPink : AppTheme.primaryPurple).withOpacity(0.4),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  )
-                                ]
-                              : null,
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${index + 1}',
-                              style: TextStyle(
-                                color: isCurrent || isActive ? Colors.white : AppTheme.textMuted,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              note,
-                              style: TextStyle(
-                                color: isCurrent || isActive ? Colors.white : AppTheme.textSecondary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 40),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
 
-// Custom Painter to draw a premium glowing synthesizer/oscilloscope wave
-class WavePainter extends CustomPainter {
-  final double animationValue;
-  final bool isPlaying;
-  final int bpm;
-  final double frequency;
-  final int currentStep;
-  final List<bool> beats;
-
-  WavePainter({
-    required this.animationValue,
-    required this.isPlaying,
-    required this.bpm,
-    required this.frequency,
-    required this.currentStep,
-    required this.beats,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppTheme.secondaryCyan
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-
-    final glowPaint = Paint()
-      ..color = AppTheme.secondaryCyan.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.0
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-
-    final path = Path();
-    final midY = size.height / 2;
-
-    // Check if the current sequencer step is active to add a "spike/pulse" to the wave
-    bool currentStepIsActive = false;
-    if (isPlaying && currentStep >= 0 && currentStep < beats.length) {
-      currentStepIsActive = beats[currentStep];
-    }
-
-    final waveWidth = size.width;
-    final waveAmplitude = currentStepIsActive ? 35.0 : (isPlaying ? 15.0 : 3.0);
-    final waveFreqScale = (frequency / 250.0);
-
-    path.moveTo(0, midY);
-
-    for (double x = 0; x <= waveWidth; x++) {
-      // Calculate sine wave coordinates
-      final phase = animationValue * 2 * math.pi * (isPlaying ? 2.5 : 0.5);
-      final angle = (x / waveWidth) * 4 * math.pi * waveFreqScale - phase;
-      
-      // Add small high frequency harmonics if active step
-      double yOffset = math.sin(angle) * waveAmplitude;
-      if (currentStepIsActive) {
-        yOffset += math.sin(angle * 3) * (waveAmplitude * 0.3);
-      }
-
-      path.lineTo(x, midY + yOffset);
-    }
-
-    // Draw the glow first, then the core line
-    canvas.drawPath(path, glowPaint);
-    canvas.drawPath(path, paint);
-
-    // Draw step pulse markers (flashing lights at bottom)
-    if (isPlaying) {
-      final stepMarkerPaint = Paint()
-        ..color = currentStepIsActive ? AppTheme.accentPink : AppTheme.primaryPurple
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        Offset(size.width - 20, 20), 
-        currentStepIsActive ? 6.0 : 4.0, 
-        stepMarkerPaint
-      );
-    }
+  Widget _buildBpmSelectorCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: AppTheme.glassCardDecoration(borderRadius: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Velocità (BPM)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                  ),
+                  // Campo numerico per sincronizzazione diretta
+                  SizedBox(
+                    width: 70,
+                    height: 38,
+                    child: TextField(
+                      controller: _bpmTextController,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryCyan),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        fillColor: Colors.black.withOpacity(0.3),
+                      ),
+                      onChanged: _onBpmTextChanged,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Slider(
+                value: _bpm.toDouble(),
+                min: 40,
+                max: 240,
+                activeColor: AppTheme.secondaryCyan,
+                inactiveColor: AppTheme.cardBorder,
+                onChanged: _onBpmSliderChanged,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant WavePainter oldDelegate) {
-    return true; // Animates continuously
+  Widget _buildSignatureAndMeasuresCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: AppTheme.glassCardDecoration(borderRadius: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Metrica & Misure',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+              ),
+              const SizedBox(height: 14),
+
+              // Time Signature Radio Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: ['4/4', '3/4', '6/8'].map((sig) {
+                  final isSelected = _selectedTimeSignature == sig;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedTimeSignature = sig;
+                      });
+                      _generateNewRhythm();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppTheme.primaryPurple : Colors.black.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected ? AppTheme.primaryPurple : AppTheme.cardBorder,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        sig,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? Colors.white : AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              const Divider(height: 24, color: AppTheme.cardBorder),
+
+              // Selettore numero di battute
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Numero di battute', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                  DropdownButton<int>(
+                    value: _measuresCount,
+                    dropdownColor: const Color(0xFF1E293B),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    underline: const SizedBox(),
+                    items: List.generate(16, (i) => i + 1).map((m) {
+                      return DropdownMenuItem<int>(
+                        value: m,
+                        child: Text('  $m  '),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _measuresCount = val;
+                        });
+                        _generateNewRhythm();
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRhythmFiguresCard() {
+    final Map<RhythmElementType, String> figureLabels = {
+      RhythmElementType.quarter: 'Quarter Notes (Semiminime)',
+      RhythmElementType.eighth: 'Eighth Notes (Crome)',
+      RhythmElementType.sixteenth: 'Sixteenth Notes (Semicrome)',
+      RhythmElementType.quarterRest: 'Quarter Rests (Pause 1/4)',
+      RhythmElementType.eighthRest: 'Eighth Rests (Pause 1/8)',
+      RhythmElementType.sixteenthRest: 'Sixteenth Rests (Pause 1/16)',
+      RhythmElementType.triplet: 'Triplets (Terzine)',
+    };
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: AppTheme.glassCardDecoration(borderRadius: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Figure Ritmiche Abilitate',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+              ),
+              const SizedBox(height: 10),
+              
+              ...figureLabels.keys.map((type) {
+                return Theme(
+                  data: ThemeData.dark().copyWith(
+                    unselectedWidgetColor: AppTheme.textMuted,
+                  ),
+                  child: CheckboxListTile(
+                    title: Text(
+                      figureLabels[type]!,
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                    ),
+                    value: _enabledFigures[type],
+                    activeColor: AppTheme.secondaryCyan,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _enabledFigures[type] = val;
+                        });
+                        _generateNewRhythm();
+                      }
+                    },
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInstrumentSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: DropdownButton<String>(
+        value: _playbackService.soundInstrument,
+        dropdownColor: const Color(0xFF1E293B),
+        underline: const SizedBox(),
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+        items: const [
+          DropdownMenuItem(value: 'snare', child: Text('🥁 Rullante')),
+          DropdownMenuItem(value: 'stick', child: Text('🥖 Bacchetta')),
+        ],
+        onChanged: (val) {
+          if (val != null) {
+            _playbackService.updateSettings(soundInstrument: val);
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlaybackControls() {
+    final bool isPlaying = _playbackService.isPlaying;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Pulsante STOP
+        IconButton(
+          icon: const Icon(Icons.stop_rounded, color: Colors.white70, size: 28),
+          onPressed: () {
+            _playbackService.stop();
+          },
+        ),
+        const SizedBox(width: 8),
+
+        // Pulsante PLAY / PAUSE
+        GestureDetector(
+          onTap: () {
+            if (isPlaying) {
+              _playbackService.pause();
+            } else {
+              _playbackService.play();
+            }
+          },
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isPlaying ? AppTheme.accentPink : AppTheme.secondaryCyan,
+              boxShadow: [
+                BoxShadow(
+                  color: (isPlaying ? AppTheme.accentPink : AppTheme.secondaryCyan).withOpacity(0.4),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                )
+              ]
+            ),
+            child: Icon(
+              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetronomeToggle() {
+    final bool isMetronomeOn = _playbackService.isMetronomeEnabled;
+    return GestureDetector(
+      onTap: () {
+        _playbackService.updateSettings(isMetronomeEnabled: !isMetronomeOn);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isMetronomeOn ? AppTheme.primaryPurple.withOpacity(0.2) : Colors.black.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isMetronomeOn ? AppTheme.primaryPurple : AppTheme.cardBorder,
+            width: 1.5,
+          ),
+        ),
+        child: Icon(
+          isMetronomeOn ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+          color: isMetronomeOn ? AppTheme.primaryPurple : AppTheme.textMuted,
+          size: 20,
+        ),
+      ),
+    );
   }
 }
