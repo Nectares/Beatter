@@ -77,11 +77,11 @@ class _RhythmCreatorPageState extends State<RhythmCreatorPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1E293B),
-          title: Text('Modifica Nota Step ${index + 1}', style: const TextStyle(color: Colors.white)),
+          backgroundColor: AppTheme.cardBackground,
+          title: Text('Modifica Nota Step ${index + 1}', style: const TextStyle(color: AppTheme.textPrimary)),
           content: TextField(
             controller: noteController,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: AppTheme.textPrimary),
             decoration: const InputDecoration(
               hintText: 'Es: C4, E4, G5, A#4',
             ),
@@ -147,7 +147,7 @@ class _RhythmCreatorPageState extends State<RhythmCreatorPage> {
                             const SizedBox(height: 10),
                             TextFormField(
                               controller: _nameController,
-                              style: const TextStyle(color: Colors.white),
+                              style: const TextStyle(color: AppTheme.textPrimary),
                               decoration: const InputDecoration(
                                 hintText: 'Es. Techno Kick Pro, Cosmic Arp...',
                               ),
@@ -266,7 +266,7 @@ class _RhythmCreatorPageState extends State<RhythmCreatorPage> {
                                     colors: [AppTheme.primaryPurple, AppTheme.accentPink],
                                   )
                                 : null,
-                            color: isActive ? null : Colors.black.withOpacity(0.3),
+                            color: isActive ? null : const Color(0xFFFFEAD6),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: isActive 

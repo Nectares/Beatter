@@ -133,7 +133,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF8B5CF6), Color(0xFFD946EF)],
+                            colors: [AppTheme.primaryPurple, AppTheme.accentPink],
                           ),
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -217,7 +217,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                     children: [
                                       Text(
                                         pat.name,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
                                       ),
                                       Text(
                                         '${pat.bpm} BPM | $activeStepCount step attivi',

@@ -219,7 +219,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     // Custom Tab Switcher (Segmented Selector)
                                     Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.3),
+                                        color: const Color(0xFFFCD5B5).withOpacity(0.3),
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(color: AppTheme.cardBorder),
                                       ),
@@ -263,7 +263,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     TextFormField(
                                       controller: _emailController,
                                       keyboardType: TextInputType.emailAddress,
-                                      style: const TextStyle(color: Colors.white),
+                                      style: const TextStyle(color: AppTheme.textPrimary),
                                       decoration: InputDecoration(
                                         labelText: 'Indirizzo Email',
                                         prefixIcon: Icon(
@@ -289,7 +289,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                     TextFormField(
                                       controller: _passwordController,
                                       obscureText: _obscurePassword,
-                                      style: const TextStyle(color: Colors.white),
+                                      style: const TextStyle(color: AppTheme.textPrimary),
                                       decoration: InputDecoration(
                                         labelText: 'Password',
                                         prefixIcon: Icon(
@@ -374,7 +374,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
+                            color: const Color(0xFFFFF0E0),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: AppTheme.cardBorder),
                           ),

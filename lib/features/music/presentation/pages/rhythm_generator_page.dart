@@ -256,9 +256,9 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
 
               // AREA PENTAGRAMMA E CONTROLLI PLAYER (Ancorati in basso)
               Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
-                  border: const Border(
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF0E0),
+                  border: Border(
                     top: BorderSide(color: AppTheme.cardBorder, width: 1.5),
                   ),
                 ),
@@ -271,7 +271,7 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
                       height: 120,
                       margin: const EdgeInsets.symmetric(horizontal: 20.0),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E293B).withOpacity(0.5),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppTheme.cardBorder, width: 1.5),
                       ),
@@ -365,7 +365,7 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
                 children: [
                   const Text(
                     'Velocità (BPM)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimary),
                   ),
                   // Campo numerico per sincronizzazione diretta
                   SizedBox(
@@ -378,7 +378,7 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
                       style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryCyan),
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                        fillColor: Colors.black.withOpacity(0.3),
+                        fillColor: const Color(0xFFFFF8F1),
                       ),
                       onChanged: _onBpmTextChanged,
                     ),
@@ -414,7 +414,7 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
             children: [
               const Text(
                 'Metrica & Misure',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimary),
               ),
               const SizedBox(height: 14),
 
@@ -433,7 +433,7 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppTheme.primaryPurple : Colors.black.withOpacity(0.2),
+                        color: isSelected ? AppTheme.primaryPurple : const Color(0xFFFFEAD6),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: isSelected ? AppTheme.primaryPurple : AppTheme.cardBorder,
@@ -461,8 +461,8 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
                   const Text('Numero di battute', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
                   DropdownButton<int>(
                     value: _measuresCount,
-                    dropdownColor: const Color(0xFF1E293B),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    dropdownColor: Colors.white,
+                    style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold),
                     underline: const SizedBox(),
                     items: List.generate(16, (i) => i + 1).map((m) {
                       return DropdownMenuItem<int>(
@@ -511,13 +511,13 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
             children: [
               const Text(
                 'Figure Ritmiche Abilitate',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimary),
               ),
               const SizedBox(height: 10),
               
               ...figureLabels.keys.map((type) {
                 return Theme(
-                  data: ThemeData.dark().copyWith(
+                  data: ThemeData.light().copyWith(
                     unselectedWidgetColor: AppTheme.textMuted,
                   ),
                   child: CheckboxListTile(
@@ -551,15 +551,15 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: const Color(0xFFFFEAD6),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppTheme.cardBorder),
       ),
       child: DropdownButton<String>(
         value: _playbackService.soundInstrument,
-        dropdownColor: const Color(0xFF1E293B),
+        dropdownColor: Colors.white,
         underline: const SizedBox(),
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+        style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
         items: const [
           DropdownMenuItem(value: 'snare', child: Text('🥁 Rullante')),
           DropdownMenuItem(value: 'stick', child: Text('🥖 Bacchetta')),
@@ -581,7 +581,7 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
       children: [
         // Pulsante STOP
         IconButton(
-          icon: const Icon(Icons.stop_rounded, color: Colors.white70, size: 28),
+          icon: const Icon(Icons.stop_rounded, color: AppTheme.textSecondary, size: 28),
           onPressed: () {
             _playbackService.stop();
           },
@@ -632,7 +632,7 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isMetronomeOn ? AppTheme.primaryPurple.withOpacity(0.2) : Colors.black.withOpacity(0.2),
+          color: isMetronomeOn ? AppTheme.primaryPurple.withOpacity(0.2) : const Color(0xFFFFEAD6),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isMetronomeOn ? AppTheme.primaryPurple : AppTheme.cardBorder,
