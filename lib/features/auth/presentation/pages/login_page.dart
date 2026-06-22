@@ -160,24 +160,24 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [AppTheme.primaryPurple, AppTheme.accentPink],
-                                ),
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primaryPurple.withOpacity(0.4),
+                                    color: AppTheme.primaryPurple.withOpacity(0.2),
                                     blurRadius: 15,
                                     offset: const Offset(0, 5),
                                   )
                                 ]
                               ),
-                              child: const Icon(
-                                Icons.music_note_rounded,
-                                size: 36,
-                                color: Colors.white,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.asset(
+                                  'assets/logos/logo_beatter.png',
+                                  width: 60,
+                                  height: 60,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 14),
