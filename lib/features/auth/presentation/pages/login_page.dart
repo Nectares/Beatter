@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../services/auth_service.dart';
 import '../../../admin/presentation/pages/admin_dashboard.dart';
-import '../../../music/presentation/pages/user_home_page.dart';
+import '../../../music/presentation/pages/flow_mode_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -75,7 +75,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           pageBuilder: (context, animation, secondaryAnimation) =>
               session.role == UserRole.admin
                   ? const AdminDashboard()
-                  : const UserHomePage(),
+                  : const FlowModePage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
