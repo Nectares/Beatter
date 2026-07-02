@@ -85,12 +85,20 @@ class RhythmPlaybackService extends ChangeNotifier {
   Timer? _schedulerTimer;
   double _totalBeats = 0.0;
 
+  // Loop infinito
+  bool _isLooping = false;
+  /// Timestamp (in ms dallo stopwatch) dell'inizio del ciclo corrente.
+  /// Usato per calcolare il beat offset relativo senza resettare lo stopwatch
+  /// (evita drift tra un loop e il successivo).
+  double _loopStartMs = 0.0;
+
   // Getters
   int get bpm => _bpm;
   bool get isMetronomeEnabled => _isMetronomeEnabled;
   String get soundInstrument => _soundInstrument;
   bool get isPlaying => _isPlaying;
   bool get isPaused => _isPaused;
+  bool get isLooping => _isLooping;
   int get currentMeasureIndex => _currentMeasureIndex;
   int get currentElementIndex => _currentElementIndex;
   int? get currentTripletIndex => _currentTripletIndex;
@@ -213,22 +221,30 @@ class RhythmPlaybackService extends ChangeNotifier {
     _nextEventIndex = 0;
   }
 
-  /// Avvia la riproduzione.
+  /// Avvia la riproduzione in loop infinito.
   void play() {
     if (_timeline.isEmpty) return;
-    
+
+    // Evita doppio play: se già in esecuzione non fare nulla
+    if (_isPlaying && !_isPaused) return;
+
     if (_isPaused) {
+      // Resume dalla pausa: riprende dallo stesso punto
       _isPaused = false;
       _isPlaying = true;
+      _isLooping = true;
       _stopwatch.start();
       _startSchedulerLoop();
       notifyListeners();
       return;
     }
 
+    // Avvio da zero
     _isPlaying = true;
     _isPaused = false;
+    _isLooping = true;
     _nextEventIndex = 0;
+    _loopStartMs = 0.0;
     _stopwatch.reset();
     _stopwatch.start();
     _startSchedulerLoop();
@@ -245,47 +261,68 @@ class RhythmPlaybackService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Ferma la riproduzione.
+  /// Ferma il loop e resetta tutto allo stato idle.
+  void stopLoop() {
+    _isLooping = false;
+    stop();
+  }
+
+  /// Ferma la riproduzione e resetta lo stato a idle.
   void stop() {
     _isPlaying = false;
     _isPaused = false;
+    _isLooping = false;
     _stopwatch.stop();
     _stopwatch.reset();
     _schedulerTimer?.cancel();
+    _schedulerTimer = null;
     _currentMeasureIndex = -1;
     _currentElementIndex = -1;
     _currentTripletIndex = null;
     _nextEventIndex = 0;
+    _loopStartMs = 0.0;
     notifyListeners();
   }
 
-  /// Loop ad alta precisione (sub-millisecondo tramite polling a 5ms) per triggerare l'audio al tempo esatto.
+  /// Loop ad alta precisione (polling a 5 ms) per triggerare l'audio al tempo esatto.
+  /// In modalità loop infinito, al termine di ogni ciclo avanza _loopStartMs di
+  /// esattamente una durata-ciclo in millisecondi, azzerando _nextEventIndex.
+  /// Questo evita qualsiasi drift tra un loop e il successivo.
   void _startSchedulerLoop() {
     _schedulerTimer?.cancel();
-    
-    // Intervallo di controllo a 5 millisecondi per la massima precisione possibile
+    _schedulerTimer = null;
+
+    // Intervallo di polling a 5 ms per la massima precisione possibile
     _schedulerTimer = Timer.periodic(const Duration(milliseconds: 5), (timer) {
       if (!_isPlaying) {
         timer.cancel();
         return;
       }
 
-      final double elapsedSeconds = _stopwatch.elapsedMilliseconds / 1000.0;
-      final double secondsPerBeat = 60.0 / _bpm;
-      final double currentBeatOffset = elapsedSeconds / secondsPerBeat;
+      final double msPerBeat = 60000.0 / _bpm;
+      final double elapsedMs = _stopwatch.elapsedMilliseconds.toDouble();
+      // Beat offset relativo all'inizio del ciclo corrente
+      final double currentBeatOffset = (elapsedMs - _loopStartMs) / msPerBeat;
 
       // Riproduci tutti gli eventi programmati fino al beat attuale
-      while (_nextEventIndex < _timeline.length && 
+      while (_nextEventIndex < _timeline.length &&
              _timeline[_nextEventIndex].beatOffset <= currentBeatOffset) {
-        
-        final event = _timeline[_nextEventIndex];
-        _executeEvent(event);
+        _executeEvent(_timeline[_nextEventIndex]);
         _nextEventIndex++;
       }
 
-      // Se abbiamo superato la fine del brano, fermiamo la riproduzione
+      // Fine del ciclo corrente
       if (currentBeatOffset >= _totalBeats) {
-        stop();
+        if (_isLooping) {
+          // Avanza l'ancoraggio del loop di esattamente una durata-ciclo.
+          // NON resettiamo lo stopwatch: evitiamo così qualsiasi jitter/drift.
+          _loopStartMs += _totalBeats * msPerBeat;
+          _nextEventIndex = 0;
+        } else {
+          // Singolo ciclo: stop pulito
+          timer.cancel();
+          stop();
+        }
       }
     });
   }

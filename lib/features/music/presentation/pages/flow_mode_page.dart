@@ -204,10 +204,12 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
   }
 
   // ── Playback Controls ────────────────────────────────────────────────────
+  /// Toggle Play/Pause del loop infinito.
   void _togglePlay() {
     if (_playbackService.isPlaying) {
       _playbackService.pause();
     } else {
+      // Sia da pausa che da stop, play() gestisce entrambi i casi
       _playbackService.play();
     }
   }
