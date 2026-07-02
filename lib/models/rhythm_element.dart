@@ -57,3 +57,148 @@ class RhythmMeasure {
 
   double get totalDuration => elements.fold(0.0, (sum, el) => sum + el.duration);
 }
+
+class RhythmSlot {
+  final String assetPath;
+  final List<double> noteDurations; // sub-durations within the 1.0 beat
+  final List<bool> isRestList;       // whether each sub-beat is a rest
+
+  RhythmSlot({
+    required this.assetPath,
+    required this.noteDurations,
+    required this.isRestList,
+  });
+
+  // Helper to map an asset to its sub-beat notes
+  static RhythmSlot fromAsset(String assetPath) {
+    final filename = assetPath.split('/').last;
+
+    // Default: single quarter note
+    List<double> durations = [1.0];
+    List<bool> rests = [false];
+
+    if (filename.contains('15.39.51')) {
+      // Single quarter note
+      durations = [1.0];
+      rests = [false];
+    } else if (filename.contains('15.40.22')) {
+      // Two eighth notes
+      durations = [0.5, 0.5];
+      rests = [false, false];
+    } else if (filename.contains('15.40.59')) {
+      // Four sixteenth notes
+      durations = [0.25, 0.25, 0.25, 0.25];
+      rests = [false, false, false, false];
+    } else if (filename.contains('15.41.33')) {
+      // Quarter rest
+      durations = [1.0];
+      rests = [true];
+    } else if (filename.contains('15.43.32')) {
+      // Eighth followed by two sixteenths
+      durations = [0.5, 0.25, 0.25];
+      rests = [false, false, false];
+    } else if (filename.contains('15.43.59')) {
+      // Two sixteenths followed by eighth
+      durations = [0.25, 0.25, 0.5];
+      rests = [false, false, false];
+    } else if (filename.contains('15.44.26')) {
+      // Eighth rest followed by eighth note
+      durations = [0.5, 0.5];
+      rests = [true, false];
+    } else if (filename.contains('15.45.34')) {
+      // Dotted eighth note followed by sixteenth
+      durations = [0.75, 0.25];
+      rests = [false, false];
+    } else if (filename.contains('15.45.42')) {
+      // Sixteenth note followed by dotted eighth
+      durations = [0.25, 0.75];
+      rests = [false, false];
+    } else if (filename.contains('15.45.48')) {
+      // Sixteenth rest followed by dotted eighth note
+      durations = [0.25, 0.75];
+      rests = [true, false];
+    } else if (filename.contains('15.45.55')) {
+      // Two sixteenth notes followed by eighth rest
+      durations = [0.25, 0.25, 0.5];
+      rests = [false, false, true];
+    } else if (filename.contains('15.46.35')) {
+      // Eighth rest followed by two sixteenth notes
+      durations = [0.5, 0.25, 0.25];
+      rests = [true, false, false];
+    } else if (filename.contains('15.46.58')) {
+      // Sixteenth, eighth, sixteenth
+      durations = [0.25, 0.5, 0.25];
+      rests = [false, false, false];
+    } else if (filename.contains('15.47.06')) {
+      // Sixteenth rest, sixteenth note, eighth note
+      durations = [0.25, 0.25, 0.5];
+      rests = [true, false, false];
+    } else if (filename.contains('15.47.14')) {
+      // Sixteenth rest, eighth note, sixteenth note
+      durations = [0.25, 0.5, 0.25];
+      rests = [true, false, false];
+    } else if (filename.contains('15.47.35')) {
+      // Sixteenth rest, two sixteenth notes, sixteenth rest
+      durations = [0.25, 0.25, 0.25, 0.25];
+      rests = [true, false, false, true];
+    } else if (filename.contains('15.47.53')) {
+      // Dotted eighth rest followed by sixteenth note
+      durations = [0.75, 0.25];
+      rests = [true, false];
+    } else if (filename.contains('15.48.14')) {
+      // Sixteenth rest, sixteenth note, sixteenth rest, sixteenth note
+      durations = [0.25, 0.25, 0.25, 0.25];
+      rests = [true, false, true, false];
+    } else if (filename.contains('15.48.21')) {
+      // Triplet of eighth notes
+      durations = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+      rests = [false, false, false];
+    } else if (filename.contains('15.48.27')) {
+      // Triplet: croma, pausa croma, croma
+      durations = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+      rests = [false, true, false];
+    } else if (filename.contains('15.48.35')) {
+      // Triplet: croma, croma, pausa croma
+      durations = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+      rests = [false, false, true];
+    } else if (filename.contains('15.48.40')) {
+      // Triplet: pausa croma, croma, croma
+      durations = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+      rests = [true, false, false];
+    } else if (filename.contains('15.48.45')) {
+      // Triplet: croma, pausa croma, pausa croma
+      durations = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+      rests = [false, true, true];
+    } else if (filename.contains('15.48.51')) {
+      // Triplet: pausa croma, croma, pausa croma
+      durations = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+      rests = [true, false, true];
+    } else if (filename.contains('15.48.57')) {
+      // Triplet: due pause croma, croma
+      durations = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+      rests = [true, true, false];
+    } else if (filename.contains('15.50.31')) {
+      // Quintuplet
+      durations = [0.2, 0.2, 0.2, 0.2, 0.2];
+      rests = [false, false, false, false, false];
+    } else if (filename.contains('15.50.38')) {
+      // Sextuplet
+      durations = [1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0];
+      rests = [false, false, false, false, false, false];
+    } else if (filename.contains('15.50.48')) {
+      // Septuplet
+      durations = [1.0 / 7.0, 1.0 / 7.0, 1.0 / 7.0, 1.0 / 7.0, 1.0 / 7.0, 1.0 / 7.0, 1.0 / 7.0];
+      rests = [false, false, false, false, false, false, false];
+    } else if (filename.contains('15.51.02')) {
+      // Octuplet
+      durations = [0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125, 0.125];
+      rests = [false, false, false, false, false, false, false, false];
+    }
+
+    return RhythmSlot(
+      assetPath: assetPath,
+      noteDurations: durations,
+      isRestList: rests,
+    );
+  }
+}

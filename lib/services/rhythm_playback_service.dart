@@ -168,6 +168,51 @@ class RhythmPlaybackService extends ChangeNotifier {
     _nextEventIndex = 0;
   }
 
+  /// Costruisce la timeline esatta degli eventi in base alle tessere del Flow Mode.
+  void prepareSlotPlayback(List<RhythmSlot> slots, String timeSignature) {
+    _timeline.clear();
+    
+    for (int i = 0; i < slots.length; i++) {
+      final slot = slots[i];
+      final double slotBeatOffset = i.toDouble();
+
+      // 1. Aggiungi i click del metronomo su ciascun movimento
+      final bool isAccent = (timeSignature == '4/4' && i % 4 == 0) ||
+                            (timeSignature == '3/4' && i % 3 == 0) ||
+                            (timeSignature == '6/8' && i % 6 == 0);
+
+      _timeline.add(PlaybackEvent(
+        beatOffset: slotBeatOffset,
+        measureIndex: 0,
+        elementIndex: -1,
+        isMetronome: true,
+        isAccent: isAccent,
+        noteType: RhythmElementType.quarter,
+      ));
+
+      // 2. Aggiungi le note all'interno del movimento
+      double subBeatOffset = 0.0;
+      for (int noteIdx = 0; noteIdx < slot.noteDurations.length; noteIdx++) {
+        final double noteDuration = slot.noteDurations[noteIdx];
+        final bool isRest = slot.isRestList[noteIdx];
+
+        _timeline.add(PlaybackEvent(
+          beatOffset: slotBeatOffset + subBeatOffset,
+          measureIndex: 0,
+          elementIndex: i, // L'indice della tessera
+          isRest: isRest,
+          noteType: RhythmElementType.quarter,
+        ));
+
+        subBeatOffset += noteDuration;
+      }
+    }
+
+    _totalBeats = slots.length.toDouble();
+    _timeline.sort((a, b) => a.beatOffset.compareTo(b.beatOffset));
+    _nextEventIndex = 0;
+  }
+
   /// Avvia la riproduzione.
   void play() {
     if (_timeline.isEmpty) return;
