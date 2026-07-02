@@ -7,7 +7,8 @@ import 'package:flutter/services.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/rhythm_element.dart';
 import '../../../../services/rhythm_playback_service.dart';
-import '../../../auth/presentation/pages/login_page.dart';
+
+import '../widgets/app_drawer.dart';
 
 class FlowModePage extends StatefulWidget {
   const FlowModePage({super.key});
@@ -179,22 +180,37 @@ class _FlowModePageState extends State<FlowModePage>
 
     final List<RhythmSlot> slots = [];
     final rand = math.Random();
-    for (int i = 0; i < _slotsCount; i++) {
-      final randomAsset = activeAssets[rand.nextInt(activeAssets.length)];
-      slots.add(RhythmSlot.fromAsset(randomAsset));
-    }
 
-    final wasPlaying = _playbackService.isPlaying;
-    _playbackService.stop();
+    if (fromTimer && _generatedSlots.isNotEmpty) {
+      // Auto-generazione: cambia solo 1 singola tessera random
+      slots.addAll(_generatedSlots);
+      final randIndex = rand.nextInt(_slotsCount);
+      slots[randIndex] = RhythmSlot.fromAsset(
+        activeAssets[rand.nextInt(activeAssets.length)],
+      );
+    } else {
+      // Generazione manuale o prima generazione: cambia tutte le tessere
+      for (int i = 0; i < _slotsCount; i++) {
+        final randomAsset = activeAssets[rand.nextInt(activeAssets.length)];
+        slots.add(RhythmSlot.fromAsset(randomAsset));
+      }
+    }
 
     setState(() {
       _generatedSlots = slots;
     });
 
-    _playbackService.prepareSlotPlayback(slots, _selectedTimeSignature);
-
-    if (wasPlaying) {
-      _playbackService.play();
+    if (fromTimer && _playbackService.isPlaying) {
+      // Se generato dal timer e in play, aggiorna in modo fluido per non perdere il timing
+      _playbackService.updateSlotsSeamlessly(slots, _selectedTimeSignature);
+    } else {
+      // Altrimenti fermati e ricomincia per un reset manuale pulito
+      final wasPlaying = _playbackService.isPlaying;
+      _playbackService.stop();
+      _playbackService.prepareSlotPlayback(slots, _selectedTimeSignature);
+      if (wasPlaying) {
+        _playbackService.play();
+      }
     }
   }
 
@@ -224,6 +240,7 @@ class _FlowModePageState extends State<FlowModePage>
   // ── Playback Controls ────────────────────────────────────────────────────
   /// Toggle Play/Pause del loop infinito.
   void _togglePlay() {
+    if (_generatedSlots.isEmpty) return;
     if (_playbackService.isPlaying) {
       _playbackService.pause();
     } else {
@@ -303,16 +320,6 @@ class _FlowModePageState extends State<FlowModePage>
       if (slotCount <= 8) return 2;
       return 3;
     }
-  }
-
-  // ── Logout ───────────────────────────────────────────────────────────────
-  void _logout() {
-    _stopAutoGenerateTimer();
-    _playbackService.stop();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-    );
   }
 
   // ── Show Settings Bottom Sheet ───────────────────────────────────────────
@@ -424,6 +431,10 @@ class _FlowModePageState extends State<FlowModePage>
                                     child: TextField(
                                       controller: _bpmTextController,
                                       keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(3),
+                                      ],
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         color: AppTheme.primaryPurple,
@@ -457,9 +468,17 @@ class _FlowModePageState extends State<FlowModePage>
                                       onChanged: (v) {
                                         _onBpmChanged(v);
                                         final p = int.tryParse(v);
-                                        if (p != null) {
+                                        if (p != null && p >= 40 && p <= 240) {
                                           setSheetState(() => _bpm = p);
                                         }
+                                      },
+                                      onSubmitted: (v) {
+                                        final p = int.tryParse(v) ?? _bpm;
+                                        final clamped = p.clamp(40, 240);
+                                        _bpmTextController.text = clamped
+                                            .toString();
+                                        _onBpmChanged(clamped.toString());
+                                        setSheetState(() => _bpm = clamped);
                                       },
                                     ),
                                   ),
@@ -1139,14 +1158,18 @@ class _FlowModePageState extends State<FlowModePage>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      // ── Left Navigation Drawer ───────────────────────────────────────────
+      drawer: const AppDrawer(activeLabel: 'Flow Mode'),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.logout_rounded, color: AppTheme.textPrimary),
-          onPressed: _logout,
-          tooltip: 'Logout',
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.textPrimary),
+            tooltip: 'Menu',
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
         ),
         title: const Text(
           'Beatter Flow Mode',
@@ -1210,6 +1233,20 @@ class _FlowModePageState extends State<FlowModePage>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
+          // Auto-Generate Toggle
+          _buildControlButton(
+            icon: Icons.autorenew_rounded,
+            color: _isAutoGenerateEnabled
+                ? AppTheme.primaryPurple
+                : AppTheme.textSecondary,
+            onTap: () {
+              setState(() {
+                _onAutoGenerateToggled(!_isAutoGenerateEnabled);
+              });
+            },
+            label: 'Auto',
+          ),
+
           // Play / Pause Button
           _buildPlayButton(isPlaying),
 
@@ -1226,8 +1263,10 @@ class _FlowModePageState extends State<FlowModePage>
   }
 
   Widget _buildPlayButton(bool isPlaying) {
+    final isDisabled = _generatedSlots.isEmpty;
+
     return GestureDetector(
-      onTap: _togglePlay,
+      onTap: isDisabled ? null : _togglePlay,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 56,
@@ -1235,24 +1274,28 @@ class _FlowModePageState extends State<FlowModePage>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
-            colors: isPlaying
+            colors: isDisabled
+                ? [AppTheme.cardBorder, AppTheme.cardBorder.withOpacity(0.5)]
+                : isPlaying
                 ? [const Color(0xFFFFC266), AppTheme.primaryPurple]
                 : [AppTheme.primaryPurple, const Color(0xFFFF9E47)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryPurple.withOpacity(0.4),
-              blurRadius: 12,
-              spreadRadius: 1,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          boxShadow: isDisabled
+              ? []
+              : [
+                  BoxShadow(
+                    color: AppTheme.primaryPurple.withOpacity(0.4),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
         ),
         child: Icon(
           isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          color: Colors.white,
+          color: isDisabled ? Colors.white54 : Colors.white,
           size: 32,
         ),
       ),

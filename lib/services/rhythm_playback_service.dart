@@ -221,6 +221,23 @@ class RhythmPlaybackService extends ChangeNotifier {
     _nextEventIndex = 0;
   }
 
+  /// Aggiorna le tessere del Flow Mode in modo fluido senza interrompere il loop.
+  void updateSlotsSeamlessly(List<RhythmSlot> slots, String timeSignature) {
+    prepareSlotPlayback(slots, timeSignature);
+    
+    if (_isPlaying && !_isPaused) {
+      final double msPerBeat = 60000.0 / _bpm;
+      final double elapsedMs = _stopwatch.elapsedMilliseconds.toDouble();
+      final double currentBeatOffset = (elapsedMs - _loopStartMs) / msPerBeat;
+
+      _nextEventIndex = 0;
+      while (_nextEventIndex < _timeline.length &&
+             _timeline[_nextEventIndex].beatOffset <= currentBeatOffset) {
+        _nextEventIndex++;
+      }
+    }
+  }
+
   /// Avvia la riproduzione in loop infinito.
   void play() {
     if (_timeline.isEmpty) return;

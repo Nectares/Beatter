@@ -1,8 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
-import '../../../auth/presentation/pages/login_page.dart';
-import 'rhythm_generator_page.dart';
+
+import 'flow_mode_page.dart';
+import '../widgets/app_drawer.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -14,6 +15,21 @@ class UserHomePage extends StatefulWidget {
 class _UserHomePageState extends State<UserHomePage> {
   // Lista dei moduli futuri per la sezione "Prossimamente"
   final List<Map<String, String>> comingSoonFeatures = [
+    {
+      'title': 'Rhythm Generator',
+      'description': 'Letture ritmiche sul pentagramma. Allena il tuo timing con il player audio integrato.',
+      'icon': '🎼',
+    },
+    {
+      'title': 'Sheet Mode',
+      'description': 'Trascrizioni e partiture avanzate per il tuo strumento.',
+      'icon': '📄',
+    },
+    {
+      'title': 'Polyrhythms',
+      'description': 'Allenamento poliritmico per indipendenza e coordinazione avanzata.',
+      'icon': '🥁',
+    },
     {
       'title': 'Ear Training Assistant',
       'description': 'Allena il tuo orecchio a riconoscere accordi, intervalli e intonazione in modo interattivo.',
@@ -36,23 +52,20 @@ class _UserHomePageState extends State<UserHomePage> {
     },
   ];
 
-  void _logout() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // ── Left Navigation Drawer ─────────────────────────────────────────
+      drawer: const AppDrawer(activeLabel: 'Home'),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: AppTheme.backgroundGradient,
         child: Stack(
           children: [
-            // Sfondi sfumati decorativi (Glowing Orbs) per un look futuristico e premium
+            // Sfondi sfumati decorativi (Glowing Orbs)
             Positioned(
               top: -100,
               right: -100,
@@ -91,45 +104,48 @@ class _UserHomePageState extends State<UserHomePage> {
                 children: [
                   // App Bar superiore personalizzata
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 16.0),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 20,
-                              backgroundColor: AppTheme.secondaryCyan,
-                              child: Icon(Icons.person, color: Colors.white, size: 20),
+                        // ── Hamburger menu ─────────────────────────────────
+                        Builder(
+                          builder: (ctx) => IconButton(
+                            icon: const Icon(
+                              Icons.menu_rounded,
+                              color: AppTheme.textPrimary,
+                              size: 26,
                             ),
-                            SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Benvenuto,',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                                Text(
-                                  'Utente Standard',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                              ],
+                            tooltip: 'Menu',
+                            onPressed: () => Scaffold.of(ctx).openDrawer(),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        // User info
+                        const CircleAvatar(
+                          radius: 20,
+                          backgroundColor: AppTheme.secondaryCyan,
+                          child: Icon(Icons.person, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Benvenuto,',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              'Utente Standard',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
                             ),
                           ],
-                        ),
-                        // Bottone di Logout
-                        IconButton(
-                          icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-                          tooltip: 'Logout',
-                          onPressed: _logout,
                         ),
                       ],
                     ),
@@ -156,12 +172,12 @@ class _UserHomePageState extends State<UserHomePage> {
                           ),
                           const SizedBox(height: 14),
 
-                          // 1. CARD PRINCIPALE: Random Rhythm Generator (UNICA FUNZIONALITÀ ATTIVA)
+                          // 1. CARD PRINCIPALE: Flow Mode (UNICA FUNZIONALITÀ ATTIVA)
                           GestureDetector(
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const RhythmGeneratorPage()),
+                                MaterialPageRoute(builder: (context) => const FlowModePage()),
                               );
                             },
                             child: Container(
@@ -193,7 +209,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
-                                      Icons.auto_awesome_rounded,
+                                      Icons.loop_rounded,
                                       color: Colors.white,
                                       size: 32,
                                     ),
@@ -204,7 +220,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'Random Rhythm Generator',
+                                          'Flow Mode',
                                           style: TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.bold,
@@ -214,7 +230,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                         ),
                                         SizedBox(height: 6),
                                         Text(
-                                          'Genera letture ritmiche professionali sul pentagramma. Allena il tuo timing con il player audio integrato.',
+                                          'Allenamento ritmico in loop infinito. Esegui pattern temporali senza interruzioni e mantieni il groove.',
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: Colors.white70,

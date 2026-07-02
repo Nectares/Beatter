@@ -5,6 +5,7 @@ import '../../../../models/rhythm_element.dart';
 import '../../../../services/rhythm_generator_service.dart';
 import '../../../../services/rhythm_playback_service.dart';
 import '../widgets/rhythm_staff_painter.dart';
+import '../widgets/app_drawer.dart';
 
 class RhythmGeneratorPage extends StatefulWidget {
   const RhythmGeneratorPage({super.key});
@@ -196,9 +197,18 @@ class _RhythmGeneratorPageState extends State<RhythmGeneratorPage> {
     staffTotalWidth += 40.0; // Spazio extra finale
 
     return Scaffold(
+      // ── Left Navigation Drawer ───────────────────────────────────────────
+      drawer: const AppDrawer(activeLabel: 'Rhythm Generator'),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.textPrimary),
+            tooltip: 'Menu',
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
         title: const Text(
           'Random Rhythm Generator',
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
