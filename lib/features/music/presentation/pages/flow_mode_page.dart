@@ -16,15 +16,16 @@ class FlowModePage extends StatefulWidget {
   State<FlowModePage> createState() => _FlowModePageState();
 }
 
-class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMixin {
+class _FlowModePageState extends State<FlowModePage>
+    with TickerProviderStateMixin {
   // ── Services ────────────────────────────────────────────────────────────
   late RhythmPlaybackService _playbackService;
-  
+
   // ── Settings ─────────────────────────────────────────────────────────────
   int _bpm = 120;
   String _selectedTimeSignature = '4/4';
   int _slotsCount = 4;
-  
+
   // ── Assets & State ────────────────────────────────────────────────────────
   List<String> _rhythmAssets = [];
   final Map<String, bool> _enabledAssets = {};
@@ -75,18 +76,33 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
   Future<void> _loadAssets() async {
     List<String> paths = [];
     try {
-      final AssetManifest manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-      paths = manifest.listAssets()
-          .where((key) => (key.startsWith('assets/icon/') || key.startsWith('assets/icons/')) && key.endsWith('.png'))
+      final AssetManifest manifest = await AssetManifest.loadFromAssetBundle(
+        rootBundle,
+      );
+      paths = manifest
+          .listAssets()
+          .where(
+            (key) =>
+                (key.startsWith('assets/icon/') ||
+                    key.startsWith('assets/icons/')) &&
+                key.endsWith('.png'),
+          )
           .toList();
     } catch (_) {}
 
     if (paths.isEmpty) {
       try {
-        final manifestContent = await rootBundle.loadString('AssetManifest.json');
+        final manifestContent = await rootBundle.loadString(
+          'AssetManifest.json',
+        );
         final Map<String, dynamic> manifestMap = json.decode(manifestContent);
         paths = manifestMap.keys
-            .where((key) => (key.startsWith('assets/icon/') || key.startsWith('assets/icons/')) && key.endsWith('.png'))
+            .where(
+              (key) =>
+                  (key.startsWith('assets/icon/') ||
+                      key.startsWith('assets/icons/')) &&
+                  key.endsWith('.png'),
+            )
             .toList();
       } catch (_) {}
     }
@@ -132,7 +148,7 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
       setState(() {
         // Exclude single eighth note (Screenshot 2026-05-07 alle 15.45.34.png)
         _rhythmAssets = paths.where((p) => !p.contains('15.45.34')).toList();
-        
+
         for (var path in _rhythmAssets) {
           _enabledAssets[path] = true;
         }
@@ -154,7 +170,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
       _startAutoGenerateTimer(); // Reset timer on manual action
     }
 
-    final activeAssets = _rhythmAssets.where((p) => _enabledAssets[p] == true).toList();
+    final activeAssets = _rhythmAssets
+        .where((p) => _enabledAssets[p] == true)
+        .toList();
     if (activeAssets.isEmpty) {
       activeAssets.addAll(_rhythmAssets);
     }
@@ -308,7 +326,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
             return ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
@@ -317,7 +337,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.92),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(28),
+                    ),
                     border: Border(
                       top: BorderSide(color: AppTheme.cardBorder, width: 1.5),
                     ),
@@ -336,10 +358,17 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                       ),
                       // Title Header
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 8,
+                        ),
                         child: Row(
                           children: [
-                            const Icon(Icons.tune_rounded, color: AppTheme.primaryPurple, size: 24),
+                            const Icon(
+                              Icons.tune_rounded,
+                              color: AppTheme.primaryPurple,
+                              size: 24,
+                            ),
                             const SizedBox(width: 10),
                             const Text(
                               'Rhythm Settings',
@@ -351,14 +380,17 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                             ),
                             const Spacer(),
                             IconButton(
-                              icon: const Icon(Icons.close_rounded, color: AppTheme.textSecondary),
+                              icon: const Icon(
+                                Icons.close_rounded,
+                                color: AppTheme.textSecondary,
+                              ),
                               onPressed: () => Navigator.pop(context),
                             ),
                           ],
                         ),
                       ),
                       const Divider(height: 1, color: AppTheme.cardBorder),
-                      
+
                       // Scrollable Controls
                       Expanded(
                         child: SingleChildScrollView(
@@ -399,15 +431,27 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                         fontSize: 15,
                                       ),
                                       decoration: InputDecoration(
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              vertical: 4,
+                                            ),
                                         fillColor: Colors.white,
                                         enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(color: AppTheme.cardBorder),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: AppTheme.cardBorder,
+                                          ),
                                         ),
                                         focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(color: AppTheme.primaryPurple, width: 1.5),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: AppTheme.primaryPurple,
+                                            width: 1.5,
+                                          ),
                                         ),
                                       ),
                                       onChanged: (v) {
@@ -428,38 +472,61 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                               const SizedBox(height: 8),
                               Row(
                                 children: ['4/4', '3/4', '6/8'].map((sig) {
-                                  final isSelected = _selectedTimeSignature == sig;
+                                  final isSelected =
+                                      _selectedTimeSignature == sig;
                                   return Expanded(
                                     child: GestureDetector(
                                       onTap: () {
-                                        setState(() => _selectedTimeSignature = sig);
-                                        setSheetState(() => _selectedTimeSignature = sig);
+                                        setState(
+                                          () => _selectedTimeSignature = sig,
+                                        );
+                                        setSheetState(
+                                          () => _selectedTimeSignature = sig,
+                                        );
                                         _generateNewRhythm();
                                       },
                                       child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 150),
-                                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        duration: const Duration(
+                                          milliseconds: 150,
+                                        ),
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: isSelected ? AppTheme.primaryPurple : Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: isSelected
+                                              ? AppTheme.primaryPurple
+                                              : Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                           border: Border.all(
-                                            color: isSelected ? AppTheme.primaryPurple : AppTheme.cardBorder,
+                                            color: isSelected
+                                                ? AppTheme.primaryPurple
+                                                : AppTheme.cardBorder,
                                             width: 1.5,
                                           ),
-                                          boxShadow: isSelected ? [
-                                            BoxShadow(
-                                              color: AppTheme.primaryPurple.withOpacity(0.2),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 3),
-                                            )
-                                          ] : null,
+                                          boxShadow: isSelected
+                                              ? [
+                                                  BoxShadow(
+                                                    color: AppTheme
+                                                        .primaryPurple
+                                                        .withOpacity(0.2),
+                                                    blurRadius: 8,
+                                                    offset: const Offset(0, 3),
+                                                  ),
+                                                ]
+                                              : null,
                                         ),
                                         child: Text(
                                           sig,
                                           textAlign: TextAlign.center,
                                           style: TextStyle(
-                                            color: isSelected ? Colors.white : AppTheme.textSecondary,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : AppTheme.textSecondary,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16,
                                           ),
@@ -472,7 +539,7 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                               const SizedBox(height: 24),
 
                               // ── Slot Count (+ / -) ───────────────────────
-                              _buildSectionTitle('NUMERO DI SLOT'),
+                              _buildSectionTitle('NUMERO DI MOVIMENTI'),
                               const SizedBox(height: 8),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -522,7 +589,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                     value: _isAutoGenerateEnabled,
                                     activeColor: AppTheme.primaryPurple,
                                     onChanged: (val) {
-                                      setSheetState(() => _isAutoGenerateEnabled = val);
+                                      setSheetState(
+                                        () => _isAutoGenerateEnabled = val,
+                                      );
                                       _onAutoGenerateToggled(val);
                                     },
                                   ),
@@ -541,7 +610,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                         activeColor: AppTheme.primaryPurple,
                                         inactiveColor: const Color(0xFFFFEAD6),
                                         onChanged: (v) {
-                                          setSheetState(() => _autoGenerateSeconds = v);
+                                          setSheetState(
+                                            () => _autoGenerateSeconds = v,
+                                          );
                                           _onAutoGenerateSpeedChanged(v);
                                         },
                                       ),
@@ -561,7 +632,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                   child: Text(
                                     _getSpeedLabel(_autoGenerateSeconds),
                                     style: TextStyle(
-                                      color: AppTheme.textSecondary.withOpacity(0.8),
+                                      color: AppTheme.textSecondary.withOpacity(
+                                        0.8,
+                                      ),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       fontStyle: FontStyle.italic,
@@ -579,7 +652,8 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                   TextButton(
                                     onPressed: () {
                                       setSheetState(() {
-                                        final allOn = _enabledAssets.values.contains(false);
+                                        final allOn = _enabledAssets.values
+                                            .contains(false);
                                         for (var k in _enabledAssets.keys) {
                                           _enabledAssets[k] = allOn;
                                         }
@@ -589,25 +663,31 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                     },
                                     child: const Text(
                                       'Tutte / Nessuna',
-                                      style: TextStyle(color: AppTheme.primaryPurple, fontSize: 13, fontWeight: FontWeight.bold),
+                                      style: TextStyle(
+                                        color: AppTheme.primaryPurple,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  )
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 8),
                               GridView.builder(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  mainAxisSpacing: 10,
-                                  crossAxisSpacing: 10,
-                                  childAspectRatio: 1.0,
-                                ),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 4,
+                                      mainAxisSpacing: 10,
+                                      crossAxisSpacing: 10,
+                                      childAspectRatio: 1.0,
+                                    ),
                                 itemCount: _rhythmAssets.length,
                                 itemBuilder: (context, idx) {
                                   final path = _rhythmAssets[idx];
-                                  final isEnabled = _enabledAssets[path] ?? false;
+                                  final isEnabled =
+                                      _enabledAssets[path] ?? false;
 
                                   return GestureDetector(
                                     onTap: () {
@@ -618,30 +698,42 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                       _generateNewRhythm();
                                     },
                                     child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 150),
+                                      duration: const Duration(
+                                        milliseconds: 150,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: isEnabled ? AppTheme.primaryPurple : AppTheme.cardBorder,
+                                          color: isEnabled
+                                              ? AppTheme.primaryPurple
+                                              : AppTheme.cardBorder,
                                           width: isEnabled ? 2.5 : 1.0,
                                         ),
-                                        boxShadow: isEnabled ? [
-                                          BoxShadow(
-                                            color: AppTheme.primaryPurple.withOpacity(0.15),
-                                            blurRadius: 6,
-                                            spreadRadius: 1,
-                                          )
-                                        ] : null,
+                                        boxShadow: isEnabled
+                                            ? [
+                                                BoxShadow(
+                                                  color: AppTheme.primaryPurple
+                                                      .withOpacity(0.15),
+                                                  blurRadius: 6,
+                                                  spreadRadius: 1,
+                                                ),
+                                              ]
+                                            : null,
                                       ),
                                       child: Stack(
                                         children: [
                                           Center(
                                             child: Padding(
-                                              padding: const EdgeInsets.all(6.0),
+                                              padding: const EdgeInsets.all(
+                                                6.0,
+                                              ),
                                               child: Opacity(
                                                 opacity: isEnabled ? 1.0 : 0.4,
-                                                child: Image.asset(path, fit: BoxFit.contain),
+                                                child: Image.asset(
+                                                  path,
+                                                  fit: BoxFit.contain,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -650,7 +742,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                               top: 4,
                                               right: 4,
                                               child: Container(
-                                                padding: const EdgeInsets.all(2),
+                                                padding: const EdgeInsets.all(
+                                                  2,
+                                                ),
                                                 decoration: const BoxDecoration(
                                                   color: AppTheme.primaryPurple,
                                                   shape: BoxShape.circle,
@@ -678,32 +772,48 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () {
-                                        final newVal = !_playbackService.isMetronomeEnabled;
+                                        final newVal = !_playbackService
+                                            .isMetronomeEnabled;
                                         setSheetState(() {});
-                                        _playbackService.updateSettings(isMetronomeEnabled: newVal);
+                                        _playbackService.updateSettings(
+                                          isMetronomeEnabled: newVal,
+                                        );
                                       },
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
                                         decoration: BoxDecoration(
-                                          color: _playbackService.isMetronomeEnabled
-                                              ? AppTheme.primaryPurple.withOpacity(0.1)
+                                          color:
+                                              _playbackService
+                                                  .isMetronomeEnabled
+                                              ? AppTheme.primaryPurple
+                                                    .withOpacity(0.1)
                                               : Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                           border: Border.all(
-                                            color: _playbackService.isMetronomeEnabled
+                                            color:
+                                                _playbackService
+                                                    .isMetronomeEnabled
                                                 ? AppTheme.primaryPurple
                                                 : AppTheme.cardBorder,
                                             width: 1.5,
                                           ),
                                         ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Icon(
-                                              _playbackService.isMetronomeEnabled
+                                              _playbackService
+                                                      .isMetronomeEnabled
                                                   ? Icons.graphic_eq_rounded
                                                   : Icons.volume_off_rounded,
-                                              color: _playbackService.isMetronomeEnabled
+                                              color:
+                                                  _playbackService
+                                                      .isMetronomeEnabled
                                                   ? AppTheme.primaryPurple
                                                   : AppTheme.textSecondary,
                                               size: 18,
@@ -712,7 +822,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                             Text(
                                               'Metronomo',
                                               style: TextStyle(
-                                                color: _playbackService.isMetronomeEnabled
+                                                color:
+                                                    _playbackService
+                                                        .isMetronomeEnabled
                                                     ? AppTheme.primaryPurple
                                                     : AppTheme.textSecondary,
                                                 fontWeight: FontWeight.bold,
@@ -726,11 +838,17 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                   ),
                                   const SizedBox(width: 12),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppTheme.cardBorder, width: 1.5),
+                                      border: Border.all(
+                                        color: AppTheme.cardBorder,
+                                        width: 1.5,
+                                      ),
                                     ),
                                     child: DropdownButton<String>(
                                       value: _playbackService.soundInstrument,
@@ -742,13 +860,25 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                         fontWeight: FontWeight.bold,
                                       ),
                                       items: const [
-                                        DropdownMenuItem(value: 'snare', child: Text('🥁 Snare')),
-                                        DropdownMenuItem(value: 'stick', child: Text('🥢 Stick')),
+                                        DropdownMenuItem(
+                                          value: 'silent',
+                                          child: Text('🔇 Silent'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'snare',
+                                          child: Text('🥁 Snare'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'stick',
+                                          child: Text('🥢 Stick'),
+                                        ),
                                       ],
                                       onChanged: (v) {
                                         if (v != null) {
                                           setSheetState(() {});
-                                          _playbackService.updateSettings(soundInstrument: v);
+                                          _playbackService.updateSettings(
+                                            soundInstrument: v,
+                                          );
                                         }
                                       },
                                     ),
@@ -775,40 +905,17 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                                   child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.shuffle_rounded, color: Colors.white),
+                                      Icon(
+                                        Icons.shuffle_rounded,
+                                        color: Colors.white,
+                                      ),
                                       SizedBox(width: 10),
                                       Text(
                                         'GENERATE RHYTHM',
-                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 48,
-                                child: OutlinedButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    _logout();
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(color: Colors.red),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.logout_rounded),
-                                      SizedBox(width: 10),
-                                      Text(
-                                        'LOGOUT',
-                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -841,7 +948,10 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
     );
   }
 
-  Widget _buildCounterButton({required IconData icon, VoidCallback? onPressed}) {
+  Widget _buildCounterButton({
+    required IconData icon,
+    VoidCallback? onPressed,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -851,15 +961,21 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: onPressed != null ? AppTheme.primaryPurple.withOpacity(0.1) : Colors.black.withOpacity(0.04),
+            color: onPressed != null
+                ? AppTheme.primaryPurple.withOpacity(0.1)
+                : Colors.black.withOpacity(0.04),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: onPressed != null ? AppTheme.primaryPurple.withOpacity(0.3) : AppTheme.cardBorder.withOpacity(0.5),
+              color: onPressed != null
+                  ? AppTheme.primaryPurple.withOpacity(0.3)
+                  : AppTheme.cardBorder.withOpacity(0.5),
             ),
           ),
           child: Icon(
             icon,
-            color: onPressed != null ? AppTheme.primaryPurple : AppTheme.textMuted,
+            color: onPressed != null
+                ? AppTheme.primaryPurple
+                : AppTheme.textMuted,
           ),
         ),
       ),
@@ -900,7 +1016,10 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _getGridColumns(_generatedSlots.length, isLandscape),
+              crossAxisCount: _getGridColumns(
+                _generatedSlots.length,
+                isLandscape,
+              ),
               mainAxisSpacing: 16,
               crossAxisSpacing: 16,
               childAspectRatio: 1.15,
@@ -908,7 +1027,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
             itemCount: _generatedSlots.length,
             itemBuilder: (context, index) {
               final slot = _generatedSlots[index];
-              final bool isActive = _playbackService.isPlaying && _playbackService.currentElementIndex == index;
+              final bool isActive =
+                  _playbackService.isPlaying &&
+                  _playbackService.currentElementIndex == index;
 
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -919,7 +1040,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isActive ? AppTheme.primaryPurple : AppTheme.cardBorder,
+                    color: isActive
+                        ? AppTheme.primaryPurple
+                        : AppTheme.cardBorder,
                     width: isActive ? 3.5 : 1.5,
                   ),
                   boxShadow: [
@@ -929,7 +1052,9 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                           : Colors.black.withOpacity(0.04),
                       blurRadius: isActive ? 16 : 6,
                       spreadRadius: isActive ? 2 : 0,
-                      offset: isActive ? const Offset(0, 4) : const Offset(0, 2),
+                      offset: isActive
+                          ? const Offset(0, 4)
+                          : const Offset(0, 2),
                     ),
                   ],
                 ),
@@ -938,10 +1063,7 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(12.0),
-                      child: Image.asset(
-                        slot.assetPath,
-                        fit: BoxFit.contain,
-                      ),
+                      child: Image.asset(slot.assetPath, fit: BoxFit.contain),
                     ),
                   ),
                 ),
@@ -1057,8 +1179,8 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _generatedSlots.isEmpty
-                        ? _buildEmptyState()
-                        : _buildSlotsGrid(isLandscape),
+                    ? _buildEmptyState()
+                    : _buildSlotsGrid(isLandscape),
               ),
 
               // Controls Bar
@@ -1088,14 +1210,6 @@ class _FlowModePageState extends State<FlowModePage> with TickerProviderStateMix
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Stop Button
-          _buildControlButton(
-            icon: Icons.stop_rounded,
-            color: AppTheme.textSecondary,
-            onTap: _playbackService.stop,
-            label: 'Stop',
-          ),
-
           // Play / Pause Button
           _buildPlayButton(isPlaying),
 

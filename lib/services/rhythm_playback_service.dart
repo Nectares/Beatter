@@ -63,7 +63,7 @@ class RhythmPlaybackService extends ChangeNotifier {
   // Configurazione riproduzione
   int _bpm = 120;
   bool _isMetronomeEnabled = true;
-  String _soundInstrument = 'snare'; // 'snare' o 'stick'
+  String _soundInstrument = 'silent'; // 'silent', 'snare' o 'stick'
 
   // Stato riproduzione
   bool _isPlaying = false;
@@ -339,7 +339,7 @@ class RhythmPlaybackService extends ChangeNotifier {
       }
     } else {
       // È una nota reale o una pausa
-      if (!event.isRest) {
+      if (!event.isRest && _soundInstrument != 'silent') {
         if (_soundInstrument == 'snare') {
           _snarePool?.play();
         } else {
