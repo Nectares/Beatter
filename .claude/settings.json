@@ -12,7 +12,9 @@
       "Bash(python3 -c \"import websocket; print\\('websocket-client ok'\\)\")",
       "Bash(node -e \"console.log\\(process.version\\)\")",
       "Bash(node -e \"require\\('ws'\\); console.log\\('ws ok'\\)\")",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(node vmservice.js \"ws://127.0.0.1:60368/1ctNY4CeRBk=/ws\" \"ext.flutter.inspector.getRootWidgetSummaryTreeWithPreviews\" '{\"isolateId\":\"1\"}')",
+      "Bash(pkill -f \"flutter_tools.snapshot run -d chrome\")"
     ]
   }
 }

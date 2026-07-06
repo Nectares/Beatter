@@ -72,37 +72,40 @@ class _MusicStaffViewState extends State<MusicStaffView> {
       return _buildEmptyState();
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double width = _contentWidth().clamp(constraints.maxWidth, double.infinity);
+    return SizedBox(
+      height: 160,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double width = _contentWidth().clamp(constraints.maxWidth, double.infinity);
 
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: InteractiveViewer(
-            key: ValueKey(widget.measures.length.toString() +
-                widget.measures.map((m) => m.elements.length).join(',')),
-            constrained: false,
-            minScale: 0.6,
-            maxScale: 2.5,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: width,
-                height: 160,
-                child: CustomPaint(
-                  painter: MusicStaffPainter(
-                    measures: widget.measures,
-                    activeMeasureIndex: widget.activeMeasureIndex,
-                    activeElementIndex: widget.activeElementIndex,
-                    activeTripletIndex: widget.activeTripletIndex,
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: InteractiveViewer(
+              key: ValueKey(widget.measures.length.toString() +
+                  widget.measures.map((m) => m.elements.length).join(',')),
+              constrained: false,
+              minScale: 0.6,
+              maxScale: 2.5,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: width,
+                  height: 160,
+                  child: CustomPaint(
+                    painter: MusicStaffPainter(
+                      measures: widget.measures,
+                      activeMeasureIndex: widget.activeMeasureIndex,
+                      activeElementIndex: widget.activeElementIndex,
+                      activeTripletIndex: widget.activeTripletIndex,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
