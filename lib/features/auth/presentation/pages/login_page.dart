@@ -2,6 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../core/layout/responsive_context.dart';
+import '../../../../core/layout/two_pane_layout.dart';
+import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../admin/presentation/pages/admin_dashboard.dart';
 import '../../../music/presentation/pages/flow_mode_page.dart';
 
@@ -12,11 +15,12 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
+
   UserRole _selectedRole = UserRole.user;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -74,8 +78,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
               session.role == UserRole.admin
-                  ? const AdminDashboard()
-                  : const FlowModePage(),
+              ? const AdminDashboard()
+              : const FlowModePage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -104,7 +108,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
-    return Scaffold(
+    return BeatterScaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -144,279 +148,330 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 ),
               ),
             ),
-            
+
             // Main content
             SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // App Logo Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryPurple.withOpacity(0.2),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  )
-                                ]
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.asset(
-                                  'assets/logos/logo_beatter.png',
-                                  width: 60,
-                                  height: 60,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            const Text(
-                              'Beatter',
-                              style: TextStyle(
-                                fontSize: 40,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.5,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Sintonizza il tuo mondo',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppTheme.textSecondary,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // Form Glass Container
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                            child: Container(
-                              padding: const EdgeInsets.all(28.0),
-                              decoration: AppTheme.glassCardDecoration(borderRadius: 24),
-                              child: Form(
-                                key: _formKey,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    // Custom Tab Switcher (Segmented Selector)
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFCD5B5).withOpacity(0.3),
-                                        borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(color: AppTheme.cardBorder),
-                                      ),
-                                      padding: const EdgeInsets.all(4),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: _buildRoleTab(
-                                              title: 'Utente',
-                                              role: UserRole.user,
-                                              icon: Icons.person_outline_rounded,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: _buildRoleTab(
-                                              title: 'Admin',
-                                              role: UserRole.admin,
-                                              icon: Icons.admin_panel_settings_outlined,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 28),
-
-                                    // Fields Label
-                                    Text(
-                                      _selectedRole == UserRole.user
-                                          ? 'Accedi come Ascoltatore'
-                                          : 'Pannello di Controllo Admin',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 20),
-
-                                    // Email Field
-                                    TextFormField(
-                                      controller: _emailController,
-                                      keyboardType: TextInputType.emailAddress,
-                                      style: const TextStyle(color: AppTheme.textPrimary),
-                                      decoration: InputDecoration(
-                                        labelText: 'Indirizzo Email',
-                                        prefixIcon: Icon(
-                                          Icons.email_outlined,
-                                          color: _selectedRole == UserRole.admin 
-                                              ? AppTheme.primaryPurple 
-                                              : AppTheme.secondaryCyan,
-                                        ),
-                                      ),
-                                      validator: (value) {
-                                        if (value == null || value.trim().isEmpty) {
-                                          return 'Inserisci la tua email';
-                                        }
-                                        if (!value.contains('@')) {
-                                          return 'Inserisci un indirizzo email valido';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    const SizedBox(height: 18),
-
-                                    // Password Field
-                                    TextFormField(
-                                      controller: _passwordController,
-                                      obscureText: _obscurePassword,
-                                      style: const TextStyle(color: AppTheme.textPrimary),
-                                      decoration: InputDecoration(
-                                        labelText: 'Password',
-                                        prefixIcon: Icon(
-                                          Icons.lock_outline_rounded,
-                                          color: _selectedRole == UserRole.admin 
-                                              ? AppTheme.primaryPurple 
-                                              : AppTheme.secondaryCyan,
-                                        ),
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            _obscurePassword
-                                                ? Icons.visibility_off_outlined
-                                                : Icons.visibility_outlined,
-                                            color: AppTheme.textSecondary,
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _obscurePassword = !_obscurePassword;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return 'Inserisci la password';
-                                        }
-                                        if (value.length < 6) {
-                                          return 'La password deve avere almeno 6 caratteri';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    
-                                    // Error Message Alert
-                                    if (_errorMessage != null) ...[
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        _errorMessage!,
-                                        style: const TextStyle(
-                                          color: Color(0xFFEF4444),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                    
-                                    const SizedBox(height: 28),
-
-                                    // Submit Button
-                                    ElevatedButton(
-                                      onPressed: _isLoading ? null : _handleLogin,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _selectedRole == UserRole.admin
-                                            ? AppTheme.primaryPurple
-                                            : AppTheme.secondaryCyan,
-                                      ),
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : Text(
-                                              _selectedRole == UserRole.admin
-                                                  ? 'ACCEDI COME ADMIN'
-                                                  : 'ACCEDI ORA',
-                                            ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Credentials Helper Card
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF0E0),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppTheme.cardBorder),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.info_outline, size: 16, color: AppTheme.secondaryCyan),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Credenziali Demo:',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                _selectedRole == UserRole.user
-                                    ? 'Utente: user@beatter.com / password123'
-                                    : 'Admin: admin@beatter.com / admin123',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.textSecondary,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+              child: TwoPaneLayout(
+                portrait: (context) => Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildBranding(context),
+                          const SizedBox(height: 40),
+                          _buildFormCard(context),
+                          const SizedBox(height: 24),
+                          _buildCredentialsHelper(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
+                landscapePrimary: (context) => Center(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: _buildBranding(context),
+                  ),
+                ),
+                landscapeSecondary: (context) => Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24.0,
+                      vertical: 16.0,
+                    ),
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildFormCard(context),
+                          const SizedBox(height: 20),
+                          _buildCredentialsHelper(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                primaryFlex: 0.4,
+                secondaryFlex: 0.6,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBranding(BuildContext context) {
+    final double logoSize = context.responsive(portrait: 60.0, landscape: 44.0);
+    final double titleSize = context.responsive(
+      portrait: 40.0,
+      landscape: 28.0,
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryPurple.withOpacity(0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/logos/logo_beatter.png',
+                  width: logoSize,
+                  height: logoSize,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Text(
+              'Beatter',
+              style: TextStyle(
+                fontSize: titleSize,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Sintonizza il tuo mondo',
+          style: TextStyle(
+            fontSize: 16,
+            color: AppTheme.textSecondary,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormCard(BuildContext context) {
+    final double padding = context.responsive(portrait: 28.0, landscape: 18.0);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: Container(
+          padding: EdgeInsets.all(padding),
+          decoration: AppTheme.glassCardDecoration(borderRadius: 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Custom Tab Switcher (Segmented Selector)
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFCD5B5).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.cardBorder),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildRoleTab(
+                          title: 'Utente',
+                          role: UserRole.user,
+                          icon: Icons.person_outline_rounded,
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildRoleTab(
+                          title: 'Admin',
+                          role: UserRole.admin,
+                          icon: Icons.admin_panel_settings_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Fields Label
+                Text(
+                  _selectedRole == UserRole.user
+                      ? 'Accedi come Ascoltatore'
+                      : 'Pannello di Controllo Admin',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+
+                // Email Field
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Indirizzo Email',
+                    prefixIcon: Icon(
+                      Icons.email_outlined,
+                      color: _selectedRole == UserRole.admin
+                          ? AppTheme.primaryPurple
+                          : AppTheme.secondaryCyan,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Inserisci la tua email';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Inserisci un indirizzo email valido';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 18),
+
+                // Password Field
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: Icon(
+                      Icons.lock_outline_rounded,
+                      color: _selectedRole == UserRole.admin
+                          ? AppTheme.primaryPurple
+                          : AppTheme.secondaryCyan,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: AppTheme.textSecondary,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Inserisci la password';
+                    }
+                    if (value.length < 6) {
+                      return 'La password deve avere almeno 6 caratteri';
+                    }
+                    return null;
+                  },
+                ),
+
+                // Error Message Alert
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage!,
+                    style: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+
+                const SizedBox(height: 28),
+
+                // Submit Button
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _selectedRole == UserRole.admin
+                        ? AppTheme.primaryPurple
+                        : AppTheme.secondaryCyan,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : Text(
+                          _selectedRole == UserRole.admin
+                              ? 'ACCEDI COME ADMIN'
+                              : 'ACCEDI ORA',
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCredentialsHelper() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0E0),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: AppTheme.secondaryCyan),
+              SizedBox(width: 8),
+              Text(
+                'Credenziali Demo:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _selectedRole == UserRole.user
+                ? 'Utente: user@beatter.com / password123'
+                : 'Admin: admin@beatter.com / admin123',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+              fontFamily: 'monospace',
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -433,8 +488,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? (role == UserRole.admin ? AppTheme.primaryPurple : AppTheme.secondaryCyan)
+          color: isSelected
+              ? (role == UserRole.admin
+                    ? AppTheme.primaryPurple
+                    : AppTheme.secondaryCyan)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),

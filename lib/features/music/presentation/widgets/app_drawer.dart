@@ -4,6 +4,7 @@ import '../../../../theme/app_theme.dart';
 import '../pages/user_home_page.dart';
 
 import '../pages/flow_mode_page.dart';
+import '../pages/sheet_mode_page.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 
 /// Navigation items for the app drawer.
@@ -60,7 +61,7 @@ class AppDrawer extends StatelessWidget {
       subtitle: 'Trascrizioni e partiture',
       icon: Icons.menu_book_rounded,
       emoji: '📄',
-      isComingSoon: true,
+      pageBuilder: _buildSheetMode,
     ),
     _DrawerItem(
       label: 'Polyrhythms',
@@ -101,6 +102,7 @@ class AppDrawer extends StatelessWidget {
 
   static Widget _buildHome() => const UserHomePage();
   static Widget _buildFlowMode() => const FlowModePage();
+  static Widget _buildSheetMode() => const SheetModePage();
 
   void _navigate(BuildContext context, _DrawerItem item) {
     if (item.isComingSoon || item.pageBuilder == null) return;

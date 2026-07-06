@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(flutter devices *)",
+      "Bash(flutter --version)",
+      "Bash(flutter run *)",
+      "Bash(curl -s http://127.0.0.1:59196/json/list)",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c \"import websockets; print\\('websockets ok'\\)\")",
+      "Bash(python3 -c \"import websocket; print\\('websocket-client ok'\\)\")",
+      "Bash(node -e \"console.log\\(process.version\\)\")",
+      "Bash(node -e \"require\\('ws'\\); console.log\\('ws ok'\\)\")",
+      "Bash(npm install *)"
+    ]
+  }
+}

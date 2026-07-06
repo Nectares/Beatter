@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../../services/pattern_repository.dart';
 import 'rhythm_creator_page.dart';
@@ -62,7 +63,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final size = MediaQuery.of(context).size;
     final isMobile = size.width < 600;
 
-    return Scaffold(
+    return BeatterScaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,

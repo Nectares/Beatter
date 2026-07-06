@@ -7,6 +7,9 @@ import 'package:flutter/services.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/rhythm_element.dart';
 import '../../../../services/rhythm_playback_service.dart';
+import '../../../../core/layout/responsive_context.dart';
+import '../../../../core/layout/two_pane_layout.dart';
+import '../../../../core/widgets/beatter_scaffold.dart';
 
 import '../widgets/app_drawer.dart';
 
@@ -1153,10 +1156,9 @@ class _FlowModePageState extends State<FlowModePage>
   // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final orientation = MediaQuery.of(context).orientation;
-    final bool isLandscape = orientation == Orientation.landscape;
+    final bool isLandscape = context.isLandscape;
 
-    return Scaffold(
+    return BeatterScaffold(
       backgroundColor: Colors.transparent,
       // ── Left Navigation Drawer ───────────────────────────────────────────
       drawer: const AppDrawer(activeLabel: 'Flow Mode'),
@@ -1192,45 +1194,61 @@ class _FlowModePageState extends State<FlowModePage>
         height: double.infinity,
         decoration: AppTheme.backgroundGradient,
         child: SafeArea(
-          child: Column(
-            children: [
-              // Metronome pulse indicator
-              _buildMetronomeIndicator(),
-
-              // Notation Grid area
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _generatedSlots.isEmpty
-                    ? _buildEmptyState()
-                    : _buildSlotsGrid(isLandscape),
-              ),
-
-              // Controls Bar
-              _buildControlsBar(isLandscape),
-            ],
+          child: TwoPaneLayout(
+            portrait: (context) => Column(
+              children: [
+                _buildMetronomeIndicator(),
+                Expanded(child: _buildGridArea(isLandscape)),
+                _buildControlsBar(isLandscape),
+              ],
+            ),
+            landscapePrimary: (context) => Column(
+              children: [
+                _buildMetronomeIndicator(),
+                Expanded(child: _buildGridArea(isLandscape)),
+              ],
+            ),
+            landscapeSecondary: (context) => _buildControlsBar(isLandscape),
+            primaryFlex: 0.78,
+            secondaryFlex: 0.22,
           ),
         ),
       ),
     );
   }
 
+  Widget _buildGridArea(bool isLandscape) {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _generatedSlots.isEmpty
+        ? _buildEmptyState()
+        : _buildSlotsGrid(isLandscape);
+  }
+
   // ── Controls Bar ─────────────────────────────────────────────────────────
+  // Portrait: a bottom bar with buttons in a row. Landscape: a side panel
+  // with buttons stacked in a column, so the notation grid keeps full height.
   Widget _buildControlsBar(bool isLandscape) {
     final bool isPlaying = _playbackService.isPlaying;
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: isLandscape ? 8 : 16,
+        horizontal: isLandscape ? 12 : 24,
+        vertical: isLandscape ? 20 : 16,
       ),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.6),
-        border: const Border(
-          top: BorderSide(color: AppTheme.cardBorder, width: 1.0),
+        border: Border(
+          top: isLandscape
+              ? BorderSide.none
+              : const BorderSide(color: AppTheme.cardBorder, width: 1.0),
+          left: isLandscape
+              ? const BorderSide(color: AppTheme.cardBorder, width: 1.0)
+              : BorderSide.none,
         ),
       ),
-      child: Row(
+      child: Flex(
+        direction: isLandscape ? Axis.vertical : Axis.horizontal,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           // Auto-Generate Toggle

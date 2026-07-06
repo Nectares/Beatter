@@ -1,8 +1,11 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../../core/layout/responsive_context.dart';
+import '../../../../core/widgets/beatter_scaffold.dart';
 
 import 'flow_mode_page.dart';
+import 'sheet_mode_page.dart';
 import '../widgets/app_drawer.dart';
 
 class UserHomePage extends StatefulWidget {
@@ -17,46 +20,45 @@ class _UserHomePageState extends State<UserHomePage> {
   final List<Map<String, String>> comingSoonFeatures = [
     {
       'title': 'Rhythm Generator',
-      'description': 'Letture ritmiche sul pentagramma. Allena il tuo timing con il player audio integrato.',
+      'description':
+          'Letture ritmiche sul pentagramma. Allena il tuo timing con il player audio integrato.',
       'icon': '🎼',
     },
     {
-      'title': 'Sheet Mode',
-      'description': 'Trascrizioni e partiture avanzate per il tuo strumento.',
-      'icon': '📄',
-    },
-    {
       'title': 'Polyrhythms',
-      'description': 'Allenamento poliritmico per indipendenza e coordinazione avanzata.',
+      'description':
+          'Allenamento poliritmico per indipendenza e coordinazione avanzata.',
       'icon': '🥁',
     },
     {
       'title': 'Ear Training Assistant',
-      'description': 'Allena il tuo orecchio a riconoscere accordi, intervalli e intonazione in modo interattivo.',
+      'description':
+          'Allena il tuo orecchio a riconoscere accordi, intervalli e intonazione in modo interattivo.',
       'icon': '👂',
     },
     {
       'title': 'Chord Progression Architect',
-      'description': 'Crea progressioni armoniche complesse ed esportale in formato MIDI per le tue produzioni.',
+      'description':
+          'Crea progressioni armoniche complesse ed esportale in formato MIDI per le tue produzioni.',
       'icon': '🎹',
     },
     {
       'title': 'Scale & Arpeggio Explorer',
-      'description': 'Esplora scale esotiche, modi gregoriani e arpeggi con grafici interattivi su tastiera e manico.',
+      'description':
+          'Esplora scale esotiche, modi gregoriani e arpeggi con grafici interattivi su tastiera e manico.',
       'icon': '🎸',
     },
     {
       'title': 'Interactive Drum Sequencer',
-      'description': 'Un sequencer a griglia avanzato multitraccia per creare beat personalizzati con campioni di batteria storici.',
+      'description':
+          'Un sequencer a griglia avanzato multitraccia per creare beat personalizzati con campioni di batteria storici.',
       'icon': '🥁',
     },
   ];
 
-
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return BeatterScaffold(
       // ── Left Navigation Drawer ─────────────────────────────────────────
       drawer: const AppDrawer(activeLabel: 'Home'),
       body: Container(
@@ -104,7 +106,13 @@ class _UserHomePageState extends State<UserHomePage> {
                 children: [
                   // App Bar superiore personalizzata
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 16.0),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.0,
+                      vertical: context.responsive(
+                        portrait: 16.0,
+                        landscape: 8.0,
+                      ),
+                    ),
                     child: Row(
                       children: [
                         // ── Hamburger menu ─────────────────────────────────
@@ -124,7 +132,11 @@ class _UserHomePageState extends State<UserHomePage> {
                         const CircleAvatar(
                           radius: 20,
                           backgroundColor: AppTheme.secondaryCyan,
-                          child: Icon(Icons.person, color: Colors.white, size: 20),
+                          child: Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Column(
@@ -172,12 +184,14 @@ class _UserHomePageState extends State<UserHomePage> {
                           ),
                           const SizedBox(height: 14),
 
-                          // 1. CARD PRINCIPALE: Flow Mode (UNICA FUNZIONALITÀ ATTIVA)
+                          // Flow Mode
                           GestureDetector(
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const FlowModePage()),
+                                MaterialPageRoute(
+                                  builder: (context) => const FlowModePage(),
+                                ),
                               );
                             },
                             child: Container(
@@ -185,18 +199,23 @@ class _UserHomePageState extends State<UserHomePage> {
                               padding: const EdgeInsets.all(22),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [AppTheme.primaryPurple, AppTheme.secondaryCyan],
+                                  colors: [
+                                    AppTheme.primaryPurple,
+                                    AppTheme.secondaryCyan,
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.secondaryCyan.withOpacity(0.3),
+                                    color: AppTheme.secondaryCyan.withOpacity(
+                                      0.3,
+                                    ),
                                     blurRadius: 15,
                                     offset: const Offset(0, 5),
                                     spreadRadius: 1,
-                                  )
+                                  ),
                                 ],
                               ),
                               child: Row(
@@ -217,7 +236,8 @@ class _UserHomePageState extends State<UserHomePage> {
                                   const SizedBox(width: 18),
                                   const Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Flow Mode',
@@ -231,6 +251,92 @@ class _UserHomePageState extends State<UserHomePage> {
                                         SizedBox(height: 6),
                                         Text(
                                           'Allenamento ritmico in loop infinito. Esegui pattern temporali senza interruzioni e mantieni il groove.',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.white70,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          // Sheet Mode
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SheetModePage(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(22),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    AppTheme.accentPink,
+                                    AppTheme.primaryPurple,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.accentPink.withOpacity(0.3),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 5),
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.menu_book_rounded,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 18),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Sheet Mode',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                            letterSpacing: 0.3,
+                                          ),
+                                        ),
+                                        SizedBox(height: 6),
+                                        Text(
+                                          'Sfoglia le tue partiture su un vero pentagramma a cinque linee.',
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: Colors.white70,
@@ -266,113 +372,34 @@ class _UserHomePageState extends State<UserHomePage> {
                           const SizedBox(height: 14),
 
                           // Liste delle card placeholder disabilitate con blur ed opacità ridotta
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: comingSoonFeatures.length,
-                            itemBuilder: (context, index) {
-                              final feature = comingSoonFeatures[index];
-                              
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Stack(
-                                    children: [
-                                      // Card standard con opacità ridotta
-                                      Opacity(
-                                        opacity: 0.45,
-                                        child: Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                                          decoration: AppTheme.glassCardDecoration(borderRadius: 16),
-                                          child: Row(
-                                            children: [
-                                              // Icona stilizzata
-                                              Container(
-                                                width: 44,
-                                                height: 44,
-                                                alignment: Alignment.center,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white.withOpacity(0.08),
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: Text(
-                                                  feature['icon']!,
-                                                  style: const TextStyle(fontSize: 22),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 16),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      feature['title']!,
-                                                      style: const TextStyle(
-                                                        fontWeight: FontWeight.bold,
-                                                        fontSize: 15,
-                                                        color: AppTheme.textPrimary,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      feature['description']!,
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        color: AppTheme.textSecondary,
-                                                        height: 1.25,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
+                          context.isLandscape
+                              ? GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: comingSoonFeatures.length,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        mainAxisSpacing: 16,
+                                        crossAxisSpacing: 16,
+                                        childAspectRatio: 2.6,
                                       ),
-
-                                      // Filtro Blur e Badge sopra la card per inibire qualsiasi interazione
-                                      Positioned.fill(
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(16),
-                                          child: BackdropFilter(
-                                            filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
-                                            child: Container(
-                                              color: Colors.transparent,
-                                            ),
-                                          ),
-                                        ),
+                                  itemBuilder: (context, index) =>
+                                      _buildComingSoonCard(
+                                        comingSoonFeatures[index],
                                       ),
-
-                                      // Badge "Coming Soon" in alto a destra
-                                      Positioned(
-                                        top: 12,
-                                        right: 12,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(0.6),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(color: AppTheme.textMuted.withOpacity(0.3)),
-                                          ),
-                                          child: const Text(
-                                            'Coming Soon',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.textSecondary,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                )
+                              : ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: comingSoonFeatures.length,
+                                  itemBuilder: (context, index) => Container(
+                                    margin: const EdgeInsets.only(bottom: 16),
+                                    child: _buildComingSoonCard(
+                                      comingSoonFeatures[index],
+                                    ),
                                   ),
                                 ),
-                              );
-                            },
-                          ),
                           const SizedBox(height: 30),
                         ],
                       ),
@@ -383,6 +410,102 @@ class _UserHomePageState extends State<UserHomePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildComingSoonCard(Map<String, String> feature) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          // Card standard con opacità ridotta
+          Opacity(
+            opacity: 0.45,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              decoration: AppTheme.glassCardDecoration(borderRadius: 16),
+              child: Row(
+                children: [
+                  // Icona stilizzata
+                  Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      feature['icon']!,
+                      style: const TextStyle(fontSize: 22),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          feature['title']!,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          feature['description']!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Filtro Blur e Badge sopra la card per inibire qualsiasi interazione
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+
+          // Badge "Coming Soon" in alto a destra
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.textMuted.withOpacity(0.3)),
+              ),
+              child: const Text(
+                'Coming Soon',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textSecondary,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

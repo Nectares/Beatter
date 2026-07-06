@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class AppTheme {
   // Brand Colors inspired by the logo
@@ -37,6 +38,16 @@ class AppTheme {
           ),
         ],
       );
+
+  // System status bar / navigation bar styling, matching the light Beatter chrome.
+  static const SystemUiOverlayStyle systemOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.white,
+    systemNavigationBarIconBrightness: Brightness.dark,
+    systemNavigationBarDividerColor: cardBorder,
+  );
 
   // Theme Data definition (configured as light theme, aliased to darkTheme for backwards compatibility)
   static ThemeData get darkTheme {

@@ -1,3 +1,5 @@
+import 'rhythm_element.dart';
+
 class RhythmPattern {
   final String name;
   final int bpm;
@@ -27,5 +29,25 @@ class RhythmPattern {
       beats: beats ?? List<bool>.from(this.beats),
       notes: notes ?? List<String>.from(this.notes),
     );
+  }
+
+  /// Converts this 16-step sequencer pattern into 4/4 [RhythmMeasure]s of
+  /// sixteenth notes/rests, so it can be rendered by [MusicStaffView] the
+  /// same way any other rhythm content is.
+  List<RhythmMeasure> toRhythmMeasures() {
+    final measures = <RhythmMeasure>[];
+    for (int start = 0; start < beats.length; start += 16) {
+      final end = (start + 16).clamp(0, beats.length);
+      final elements = <RhythmElement>[];
+      for (int i = start; i < end; i++) {
+        elements.add(RhythmElement(
+          type: beats[i] ? RhythmElementType.sixteenth : RhythmElementType.sixteenthRest,
+          duration: 0.25,
+          noteName: notes[i],
+        ));
+      }
+      measures.add(RhythmMeasure(elements: elements, timeSignature: '4/4'));
+    }
+    return measures;
   }
 }
