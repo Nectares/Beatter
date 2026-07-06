@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/rhythm_element.dart';
 import 'music_staff_painter.dart';
+import 'staff_geometry.dart' as geometry;
 
 /// Interactive wrapper around [MusicStaffPainter]: horizontal scrolling,
 /// pinch-zoom, a cross-fade when the rendered measures change, and an empty
@@ -45,25 +46,13 @@ class _MusicStaffViewState extends State<MusicStaffView> {
   }
 
   double _contentWidth() {
-    const double leadingWidth = 100.0; // clef + time signature
-    const double measureGap = 10.0;
+    const double leadingWidth =
+        geometry.staffLeadingX + geometry.staffClefWidth + geometry.staffTimeSigWidth;
     double width = leadingWidth;
     for (final measure in widget.measures) {
-      width += _measureWidthFor(measure.timeSignature) + measureGap;
+      width += geometry.measureWidth(measure.timeSignature) + geometry.staffMeasureGap;
     }
     return width;
-  }
-
-  double _measureWidthFor(String timeSignature) {
-    switch (timeSignature) {
-      case '3/4':
-        return 180.0;
-      case '6/8':
-        return 200.0;
-      case '4/4':
-      default:
-        return 240.0;
-    }
   }
 
   @override

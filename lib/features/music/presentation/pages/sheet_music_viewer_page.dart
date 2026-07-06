@@ -4,6 +4,7 @@ import '../../../../theme/app_theme.dart';
 import '../../../../models/rhythm_element.dart';
 import '../../../../services/rhythm_playback_service.dart';
 import '../../../../widgets/music_staff/music_staff_view.dart';
+import '../widgets/playback_button.dart';
 
 /// Renders a real staff for any [measures] and offers percussive-click
 /// playback via the existing [RhythmPlaybackService].
@@ -104,7 +105,7 @@ class _StaffPlaybackPanelState extends State<StaffPlaybackPanel> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _PlaybackButton(
+              PlaybackButton(
                 icon: isPlaying
                     ? Icons.pause_rounded
                     : Icons.play_arrow_rounded,
@@ -112,7 +113,7 @@ class _StaffPlaybackPanelState extends State<StaffPlaybackPanel> {
                 primary: true,
               ),
               const SizedBox(width: 16),
-              _PlaybackButton(
+              PlaybackButton(
                 icon: Icons.stop_rounded,
                 onTap: widget.measures.isEmpty
                     ? null
@@ -122,43 +123,6 @@ class _StaffPlaybackPanelState extends State<StaffPlaybackPanel> {
           ),
           const SizedBox(height: 20),
         ],
-      ),
-    );
-  }
-}
-
-class _PlaybackButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  final bool primary;
-
-  const _PlaybackButton({
-    required this.icon,
-    required this.onTap,
-    this.primary = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Opacity(
-      opacity: onTap != null ? 1.0 : 0.5,
-      child: Material(
-        color: primary
-            ? AppTheme.primaryPurple
-            : AppTheme.cardBorder.withOpacity(0.5),
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Icon(
-              icon,
-              color: primary ? Colors.white : AppTheme.textSecondary,
-              size: primary ? 28 : 22,
-            ),
-          ),
-        ),
       ),
     );
   }

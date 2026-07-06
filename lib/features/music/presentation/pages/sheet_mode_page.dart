@@ -5,7 +5,9 @@ import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/rhythm_pattern.dart';
 import '../../../../services/pattern_repository.dart';
+import '../../../../services/composition_repository.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/composition_list_tile.dart';
 import 'sheet_music_viewer_page.dart';
 
 class SheetModePage extends StatefulWidget {
@@ -19,15 +21,30 @@ class _SheetModePageState extends State<SheetModePage> with SingleTickerProvider
   late final TabController _tabController;
   int _selectedPatternIndex = 0;
 
+  final CompositionRepository _compositionRepository = CompositionRepository();
+  bool _compositionsLoading = true;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _compositionRepository.addListener(_onCompositionsChanged);
+    _loadCompositions();
+  }
+
+  Future<void> _loadCompositions() async {
+    await _compositionRepository.init();
+    if (mounted) setState(() => _compositionsLoading = false);
+  }
+
+  void _onCompositionsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _compositionRepository.removeListener(_onCompositionsChanged);
     super.dispose();
   }
 
@@ -188,9 +205,38 @@ class _SheetModePageState extends State<SheetModePage> with SingleTickerProvider
   }
 
   Widget _buildCompositionsTab() {
-    return _buildEmptyState(
-      icon: Icons.edit_note_rounded,
-      message: 'Le tue composizioni salvate appariranno qui quando Composer Mode sarà disponibile.',
+    if (_compositionsLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final compositions = _compositionRepository.compositions;
+    if (compositions.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.edit_note_rounded,
+        message: 'Nessuna composizione ancora. Apri Composer Mode dal menu per iniziare.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(20),
+      itemCount: compositions.length,
+      itemBuilder: (context, index) {
+        final composition = compositions[index];
+        return CompositionListTile(
+          title: composition.title,
+          subtitle: '${composition.bpm} BPM',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SheetMusicViewerPage(
+                title: composition.title,
+                measures: composition.toRhythmMeasures(),
+                bpm: composition.bpm,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

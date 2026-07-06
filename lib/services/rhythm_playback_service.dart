@@ -13,6 +13,7 @@ class PlaybackEvent {
   final bool isAccent;          // true se è il primo movimento (forte)
   final bool isRest;            // true se è una pausa
   final RhythmElementType noteType;
+  final String? noteName;       // pitch (es. 'C4'), per la riproduzione melodica
 
   PlaybackEvent({
     required this.beatOffset,
@@ -23,6 +24,7 @@ class PlaybackEvent {
     this.isAccent = false,
     this.isRest = false,
     required this.noteType,
+    this.noteName,
   });
 }
 
@@ -63,7 +65,7 @@ class RhythmPlaybackService extends ChangeNotifier {
   // Configurazione riproduzione
   int _bpm = 120;
   bool _isMetronomeEnabled = true;
-  String _soundInstrument = 'silent'; // 'silent', 'snare' o 'stick'
+  String _soundInstrument = 'silent'; // 'silent', 'snare', 'stick' o 'melodic'
 
   // Stato riproduzione
   bool _isPlaying = false;
@@ -77,6 +79,17 @@ class RhythmPlaybackService extends ChangeNotifier {
   AudioPlayerPool? _clickPool;
   AudioPlayerPool? _stickPool;
   AudioPlayerPool? _snarePool;
+  final Map<String, AudioPlayerPool> _notePools = {};
+  final bool _enableMelodicPlayback;
+
+  /// Natural notes C3–C6 — matches the WAV set pre-baked by
+  /// `generate_note_assets.dart` and the staff's letter-only pitch range.
+  static const List<String> _melodicNoteNames = [
+    'C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3',
+    'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4',
+    'C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5',
+    'C6',
+  ];
 
   // Scheduler interni
   final List<PlaybackEvent> _timeline = [];
@@ -103,7 +116,11 @@ class RhythmPlaybackService extends ChangeNotifier {
   int get currentElementIndex => _currentElementIndex;
   int? get currentTripletIndex => _currentTripletIndex;
 
-  RhythmPlaybackService() {
+  /// [enableMelodicPlayback] builds one small audio pool per pitched note
+  /// (used by Composer Mode) — left off elsewhere so Flow Mode/Sheet Mode
+  /// don't pay for two dozen unused audio players.
+  RhythmPlaybackService({bool enableMelodicPlayback = false})
+      : _enableMelodicPlayback = enableMelodicPlayback {
     _initAudioPools();
   }
 
@@ -112,6 +129,12 @@ class RhythmPlaybackService extends ChangeNotifier {
     _clickPool = AudioPlayerPool(assetPath: 'audio/metronome_click.wav', size: 3);
     _stickPool = AudioPlayerPool(assetPath: 'audio/stick.wav', size: 3);
     _snarePool = AudioPlayerPool(assetPath: 'audio/snare.wav', size: 4);
+
+    if (_enableMelodicPlayback) {
+      for (final noteName in _melodicNoteNames) {
+        _notePools[noteName] = AudioPlayerPool(assetPath: 'audio/notes/$noteName.wav', size: 2);
+      }
+    }
   }
 
   void updateSettings({int? bpm, bool? isMetronomeEnabled, String? soundInstrument}) {
@@ -131,7 +154,10 @@ class RhythmPlaybackService extends ChangeNotifier {
       final timeSig = measure.timeSignature;
 
       // 1. Aggiungi i click del metronomo
-      if (timeSig == '4/4') {
+      if (timeSig == '2/4') {
+        _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: -1, isMetronome: true, isAccent: true, noteType: RhythmElementType.quarter));
+        _timeline.add(PlaybackEvent(beatOffset: currentBeat + 1.0, measureIndex: m, elementIndex: -1, isMetronome: true, noteType: RhythmElementType.quarter));
+      } else if (timeSig == '4/4') {
         _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: -1, isMetronome: true, isAccent: true, noteType: RhythmElementType.quarter));
         _timeline.add(PlaybackEvent(beatOffset: currentBeat + 1.0, measureIndex: m, elementIndex: -1, isMetronome: true, noteType: RhythmElementType.quarter));
         _timeline.add(PlaybackEvent(beatOffset: currentBeat + 2.0, measureIndex: m, elementIndex: -1, isMetronome: true, noteType: RhythmElementType.quarter));
@@ -152,15 +178,15 @@ class RhythmPlaybackService extends ChangeNotifier {
 
         if (element.type == RhythmElementType.triplet) {
           // Terzina: 3 note equidistanti che riempiono 1 battito
-          _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: e, tripletIndex: 0, noteType: element.type));
-          _timeline.add(PlaybackEvent(beatOffset: currentBeat + 1.0 / 3.0, measureIndex: m, elementIndex: e, tripletIndex: 1, noteType: element.type));
-          _timeline.add(PlaybackEvent(beatOffset: currentBeat + 2.0 / 3.0, measureIndex: m, elementIndex: e, tripletIndex: 2, noteType: element.type));
+          _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: e, tripletIndex: 0, noteType: element.type, noteName: element.tripletNotes[0]));
+          _timeline.add(PlaybackEvent(beatOffset: currentBeat + 1.0 / 3.0, measureIndex: m, elementIndex: e, tripletIndex: 1, noteType: element.type, noteName: element.tripletNotes[1]));
+          _timeline.add(PlaybackEvent(beatOffset: currentBeat + 2.0 / 3.0, measureIndex: m, elementIndex: e, tripletIndex: 2, noteType: element.type, noteName: element.tripletNotes[2]));
         } else if (element.isRest) {
           // Evento silenzioso solo per notificare l'interfaccia dell'evidenziazione
           _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: e, isRest: true, noteType: element.type));
         } else {
           // Nota singola (quarter, eighth, sixteenth)
-          _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: e, noteType: element.type));
+          _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: e, noteType: element.type, noteName: element.noteName));
         }
 
         currentBeat += element.duration;
@@ -357,7 +383,9 @@ class RhythmPlaybackService extends ChangeNotifier {
     } else {
       // È una nota reale o una pausa
       if (!event.isRest && _soundInstrument != 'silent') {
-        if (_soundInstrument == 'snare') {
+        if (_soundInstrument == 'melodic') {
+          _notePools[event.noteName]?.play();
+        } else if (_soundInstrument == 'snare') {
           _snarePool?.play();
         } else {
           _stickPool?.play();
@@ -379,6 +407,9 @@ class RhythmPlaybackService extends ChangeNotifier {
     _clickPool?.dispose();
     _stickPool?.dispose();
     _snarePool?.dispose();
+    for (final pool in _notePools.values) {
+      pool.dispose();
+    }
     super.dispose();
   }
 }

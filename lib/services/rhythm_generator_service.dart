@@ -107,6 +107,10 @@ class RhythmGeneratorService {
   /// Restituisce la durata di ciascun tipo di elemento ritmico.
   static double _getDurationForType(RhythmElementType type) {
     switch (type) {
+      case RhythmElementType.whole:
+        return 4.0;
+      case RhythmElementType.half:
+        return 2.0;
       case RhythmElementType.quarter:
       case RhythmElementType.quarterRest:
         return 1.0;

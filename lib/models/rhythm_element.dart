@@ -1,4 +1,6 @@
 enum RhythmElementType {
+  whole,         // Semibreve (4.0 beats)
+  half,          // Minima (2.0 beats)
   quarter,       // Semiminima (1.0 beat)
   eighth,        // Croma (0.5 beat)
   sixteenth,     // Semicroma (0.25 beat)
@@ -28,6 +30,10 @@ class RhythmElement {
 
   String get displayName {
     switch (type) {
+      case RhythmElementType.whole:
+        return 'Semibreve (1/1)';
+      case RhythmElementType.half:
+        return 'Minima (1/2)';
       case RhythmElementType.quarter:
         return 'Semiminima (1/4)';
       case RhythmElementType.eighth:

@@ -19,7 +19,6 @@ class MusicStaffPainter extends CustomPainter {
   static const double lineSpacing = geometry.lineSpacing;
   static const double noteWidth = geometry.noteWidth;
   static const double noteHeight = geometry.noteHeight;
-  static const double _measureGap = 10.0;
 
   MusicStaffPainter({
     required this.measures,
@@ -50,50 +49,42 @@ class MusicStaffPainter extends CustomPainter {
 
     if (measures.isEmpty) return;
 
-    double currentX = 20.0;
-
-    _drawTrebleClef(canvas, currentX, midY, lineSpacing);
-    currentX += 45.0;
+    _drawTrebleClef(canvas, geometry.staffLeadingX, midY, lineSpacing);
 
     final String timeSig = measures.first.timeSignature;
-    _drawTimeSignature(canvas, currentX, midY, timeSig);
-    currentX += 35.0;
+    _drawTimeSignature(
+      canvas,
+      geometry.staffLeadingX + geometry.staffClefWidth,
+      midY,
+      timeSig,
+    );
 
-    for (int m = 0; m < measures.length; m++) {
-      final measure = measures[m];
-      final double width = geometry.measureWidth(measure.timeSignature);
-      final double endX = currentX + width;
+    final layout = geometry.computeLayout(measures);
 
-      double elapsedBeats = 0.0;
-      final double beatsPerMeasure = geometry.targetBeats(measure.timeSignature);
+    for (final measureLayout in layout) {
+      final measure = measures[measureLayout.measureIndex];
 
-      for (int e = 0; e < measure.elements.length; e++) {
-        final element = measure.elements[e];
-
-        final double elementX =
-            currentX + (elapsedBeats / beatsPerMeasure) * (width - 30.0) + 15.0;
-        final bool isActive = (m == activeMeasureIndex && e == activeElementIndex);
+      for (final position in measureLayout.elements) {
+        final element = measure.elements[position.elementIndex];
+        final bool isActive = (position.measureIndex == activeMeasureIndex &&
+            position.elementIndex == activeElementIndex);
 
         _drawRhythmElement(
           canvas: canvas,
           element: element,
-          x: elementX,
+          x: position.x,
           midY: midY,
           spacing: lineSpacing,
           isActive: isActive,
           activeTripletIndex: activeTripletIndex,
         );
-
-        elapsedBeats += element.duration;
       }
 
       canvas.drawLine(
-        Offset(endX, midY - 2 * lineSpacing),
-        Offset(endX, midY + 2 * lineSpacing),
+        Offset(measureLayout.endX, midY - 2 * lineSpacing),
+        Offset(measureLayout.endX, midY + 2 * lineSpacing),
         barPaint,
       );
-
-      currentX = endX + _measureGap;
     }
   }
 
@@ -125,7 +116,10 @@ class MusicStaffPainter extends CustomPainter {
   void _drawTimeSignature(Canvas canvas, double x, double y, String timeSig) {
     String topNum = '4';
     String bottomNum = '4';
-    if (timeSig == '3/4') {
+    if (timeSig == '2/4') {
+      topNum = '2';
+      bottomNum = '4';
+    } else if (timeSig == '3/4') {
       topNum = '3';
       bottomNum = '4';
     } else if (timeSig == '6/8') {
@@ -186,6 +180,24 @@ class MusicStaffPainter extends CustomPainter {
     }
 
     switch (element.type) {
+      case RhythmElementType.whole:
+        {
+          final y = geometry.noteY(element.noteName, midY, spacing);
+          _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          _drawNoteHead(canvas, x, y, notePaint, hollow: true);
+        }
+        break;
+
+      case RhythmElementType.half:
+        {
+          final y = geometry.noteY(element.noteName, midY, spacing);
+          final up = geometry.stemsUp(element.noteName);
+          _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          _drawNoteHead(canvas, x, y, notePaint, hollow: true);
+          _drawStem(canvas, x, y, spacing, up, stemPaint);
+        }
+        break;
+
       case RhythmElementType.quarter:
         {
           final y = geometry.noteY(element.noteName, midY, spacing);
@@ -258,13 +270,19 @@ class MusicStaffPainter extends CustomPainter {
     }
   }
 
-  void _drawNoteHead(Canvas canvas, double x, double y, Paint paint) {
+  void _drawNoteHead(Canvas canvas, double x, double y, Paint paint, {bool hollow = false}) {
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(-20 * math.pi / 180);
+    final headPaint = hollow
+        ? (Paint()
+          ..color = paint.color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5)
+        : paint;
     canvas.drawOval(
       Rect.fromCenter(center: Offset.zero, width: noteWidth, height: noteHeight),
-      paint,
+      headPaint,
     );
     canvas.restore();
   }

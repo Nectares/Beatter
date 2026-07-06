@@ -11,6 +11,7 @@ class BeatterScaffold extends StatelessWidget {
   final Widget body;
   final Color backgroundColor;
   final SystemUiOverlayStyle? overlayStyle;
+  final Widget? floatingActionButton;
 
   const BeatterScaffold({
     super.key,
@@ -19,6 +20,7 @@ class BeatterScaffold extends StatelessWidget {
     required this.body,
     this.backgroundColor = Colors.transparent,
     this.overlayStyle,
+    this.floatingActionButton,
   });
 
   @override
@@ -30,6 +32,7 @@ class BeatterScaffold extends StatelessWidget {
         appBar: appBar,
         drawer: drawer,
         body: body,
+        floatingActionButton: floatingActionButton,
       ),
     );
   }

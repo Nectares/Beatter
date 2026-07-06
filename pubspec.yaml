@@ -35,6 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   audioplayers: ^6.0.0
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +65,7 @@ flutter:
     - assets/audio/metronome_click.wav
     - assets/audio/stick.wav
     - assets/audio/snare.wav
+    - assets/audio/notes/
     - assets/logos/logo_beatter.png
     - assets/icon/
 

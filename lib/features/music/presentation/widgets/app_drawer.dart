@@ -5,6 +5,7 @@ import '../pages/user_home_page.dart';
 
 import '../pages/flow_mode_page.dart';
 import '../pages/sheet_mode_page.dart';
+import '../pages/composition_library_page.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 
 /// Navigation items for the app drawer.
@@ -64,6 +65,13 @@ class AppDrawer extends StatelessWidget {
       pageBuilder: _buildSheetMode,
     ),
     _DrawerItem(
+      label: 'Composer Mode',
+      subtitle: 'Componi le tue melodie',
+      icon: Icons.edit_note_rounded,
+      emoji: '✍️',
+      pageBuilder: _buildComposerMode,
+    ),
+    _DrawerItem(
       label: 'Polyrhythms',
       subtitle: 'Allenamento poliritmico',
       icon: Icons.group_work_rounded,
@@ -103,6 +111,7 @@ class AppDrawer extends StatelessWidget {
   static Widget _buildHome() => const UserHomePage();
   static Widget _buildFlowMode() => const FlowModePage();
   static Widget _buildSheetMode() => const SheetModePage();
+  static Widget _buildComposerMode() => const CompositionLibraryPage();
 
   void _navigate(BuildContext context, _DrawerItem item) {
     if (item.isComingSoon || item.pageBuilder == null) return;
