@@ -36,6 +36,11 @@ class _FlowModePageState extends State<FlowModePage>
   List<RhythmSlot> _generatedSlots = [];
   bool _isLoading = true;
 
+  // ── Grid scroll-to-active-slot ───────────────────────────────────────────
+  final ScrollController _gridScrollController = ScrollController();
+  List<GlobalKey> _slotKeys = [];
+  int? _lastScrolledSlotIndex;
+
   // ── Auto-Generation Timer ────────────────────────────────────────────────
   bool _isAutoGenerateEnabled = false;
   double _autoGenerateSeconds = 5.0; // Default 5 seconds
@@ -72,6 +77,7 @@ class _FlowModePageState extends State<FlowModePage>
     _playbackService.stop();
     _playbackService.dispose();
     _bpmTextController.dispose();
+    _gridScrollController.dispose();
     _stopAutoGenerateTimer();
     super.dispose();
   }
@@ -199,6 +205,10 @@ class _FlowModePageState extends State<FlowModePage>
       }
     }
 
+    if (_slotKeys.length != slots.length) {
+      _slotKeys = List.generate(slots.length, (_) => GlobalKey());
+    }
+
     setState(() {
       _generatedSlots = slots;
     });
@@ -221,6 +231,31 @@ class _FlowModePageState extends State<FlowModePage>
   void _onPlaybackChanged() {
     if (!mounted) return;
     setState(() {});
+    _scrollActiveSlotIntoView();
+  }
+
+  // ── Keep the currently lit slot in view while playing ───────────────────
+  void _scrollActiveSlotIntoView() {
+    if (!_playbackService.isPlaying) {
+      _lastScrolledSlotIndex = null;
+      return;
+    }
+
+    final index = _playbackService.currentElementIndex;
+    if (index < 0 || index >= _slotKeys.length) return;
+    if (_lastScrolledSlotIndex == index) return;
+    _lastScrolledSlotIndex = index;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _slotKeys[index].currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        alignment: 0.5,
+      );
+    });
   }
 
   // ── BPM Helpers ──────────────────────────────────────────────────────────
@@ -310,18 +345,18 @@ class _FlowModePageState extends State<FlowModePage>
   }
 
   // ── Grid Helper ──────────────────────────────────────────────────────────
+  // Cards shrink (more columns) as the slot count grows, so more tiles fit
+  // on screen at once and less scrolling is needed to reach the active one.
   int _getGridColumns(int slotCount, bool isLandscape) {
     if (isLandscape) {
       if (slotCount <= 4) return slotCount;
-      if (slotCount <= 6) return 3;
-      if (slotCount <= 8) return 4;
-      return 6;
+      if (slotCount <= 6) return 4;
+      return 5; // 7
     } else {
       if (slotCount <= 3) return slotCount;
-      if (slotCount <= 4) return 2;
-      if (slotCount <= 6) return 2;
-      if (slotCount <= 8) return 2;
-      return 3;
+      if (slotCount == 4) return 2;
+      if (slotCount <= 6) return 3;
+      return 4; // 7
     }
   }
 
@@ -1031,21 +1066,25 @@ class _FlowModePageState extends State<FlowModePage>
 
   // ── Rhythm Slots Grid Widget ──────────────────────────────────────────────
   Widget _buildSlotsGrid(bool isLandscape) {
+    final int columns = _getGridColumns(_generatedSlots.length, isLandscape);
+    // Denser grids (more columns) get tighter spacing/padding so the smaller
+    // cards don't look lost in oversized gaps.
+    final double spacing = columns <= 3 ? 16.0 : 10.0;
+    final double imagePadding = columns <= 3 ? 12.0 : 6.0;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Center(
         child: SingleChildScrollView(
+          controller: _gridScrollController,
           physics: const BouncingScrollPhysics(),
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: _getGridColumns(
-                _generatedSlots.length,
-                isLandscape,
-              ),
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
+              crossAxisCount: columns,
+              mainAxisSpacing: spacing,
+              crossAxisSpacing: spacing,
               childAspectRatio: 1.15,
             ),
             itemCount: _generatedSlots.length,
@@ -1055,39 +1094,42 @@ class _FlowModePageState extends State<FlowModePage>
                   _playbackService.isPlaying &&
                   _playbackService.currentElementIndex == index;
 
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                transform: Matrix4.identity()..scale(isActive ? 1.06 : 1.0),
-                transformAlignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: isActive
-                        ? AppTheme.primaryPurple
-                        : AppTheme.cardBorder,
-                    width: isActive ? 3.5 : 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
+              return KeyedSubtree(
+                key: index < _slotKeys.length ? _slotKeys[index] : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  transform: Matrix4.identity()..scale(isActive ? 1.06 : 1.0),
+                  transformAlignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
                       color: isActive
-                          ? AppTheme.primaryPurple.withOpacity(0.4)
-                          : Colors.black.withOpacity(0.04),
-                      blurRadius: isActive ? 16 : 6,
-                      spreadRadius: isActive ? 2 : 0,
-                      offset: isActive
-                          ? const Offset(0, 4)
-                          : const Offset(0, 2),
+                          ? AppTheme.primaryPurple
+                          : AppTheme.cardBorder,
+                      width: isActive ? 3.5 : 1.5,
                     ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Image.asset(slot.assetPath, fit: BoxFit.contain),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isActive
+                            ? AppTheme.primaryPurple.withOpacity(0.4)
+                            : Colors.black.withOpacity(0.04),
+                        blurRadius: isActive ? 16 : 6,
+                        spreadRadius: isActive ? 2 : 0,
+                        offset: isActive
+                            ? const Offset(0, 4)
+                            : const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(imagePadding),
+                        child: Image.asset(slot.assetPath, fit: BoxFit.contain),
+                      ),
                     ),
                   ),
                 ),
@@ -1211,8 +1253,8 @@ class _FlowModePageState extends State<FlowModePage>
               ],
             ),
             landscapeSecondary: (context) => _buildControlsBar(isLandscape),
-            primaryFlex: 0.78,
-            secondaryFlex: 0.22,
+            primaryFlex: 0.88,
+            secondaryFlex: 0.12,
           ),
         ),
       ),
@@ -1235,8 +1277,8 @@ class _FlowModePageState extends State<FlowModePage>
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: isLandscape ? 12 : 24,
-        vertical: isLandscape ? 20 : 16,
+        horizontal: isLandscape ? 6 : 24,
+        vertical: isLandscape ? 16 : 16,
       ),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.6),
@@ -1265,10 +1307,11 @@ class _FlowModePageState extends State<FlowModePage>
               });
             },
             label: 'Auto',
+            isCompact: isLandscape,
           ),
 
           // Play / Pause Button
-          _buildPlayButton(isPlaying),
+          _buildPlayButton(isPlaying, isCompact: isLandscape),
 
           // Generate Rhythm Button
           _buildControlButton(
@@ -1276,21 +1319,23 @@ class _FlowModePageState extends State<FlowModePage>
             color: AppTheme.primaryPurple,
             onTap: () => _generateNewRhythm(),
             label: 'Generate',
+            isCompact: isLandscape,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPlayButton(bool isPlaying) {
+  Widget _buildPlayButton(bool isPlaying, {bool isCompact = false}) {
     final isDisabled = _generatedSlots.isEmpty;
+    final double size = isCompact ? 44 : 56;
 
     return GestureDetector(
       onTap: isDisabled ? null : _togglePlay,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 56,
-        height: 56,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
@@ -1316,7 +1361,7 @@ class _FlowModePageState extends State<FlowModePage>
         child: Icon(
           isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
           color: isDisabled ? Colors.white54 : Colors.white,
-          size: 32,
+          size: isCompact ? 24 : 32,
         ),
       ),
     );
@@ -1327,28 +1372,31 @@ class _FlowModePageState extends State<FlowModePage>
     required Color color,
     required VoidCallback onTap,
     required String label,
+    bool isCompact = false,
   }) {
+    final double size = isCompact ? 34 : 44;
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: size,
+            height: size,
             decoration: BoxDecoration(
               color: color.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
               border: Border.all(color: color.withOpacity(0.2), width: 1.2),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: isCompact ? 17 : 22),
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
               color: color.withOpacity(0.8),
-              fontSize: 10,
+              fontSize: isCompact ? 9 : 10,
               fontWeight: FontWeight.w600,
             ),
           ),
