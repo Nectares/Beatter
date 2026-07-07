@@ -31,8 +31,8 @@ class DurationToolbar extends StatelessWidget {
             height: 48,
             decoration: BoxDecoration(
               color: isSelected
-                  ? AppTheme.primaryPurple.withOpacity(0.12)
-                  : AppTheme.cardBorder.withOpacity(0.3),
+                  ? AppTheme.primaryPurple.withValues(alpha: 0.12)
+                  : AppTheme.cardBorder.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected ? AppTheme.primaryPurple : Colors.transparent,

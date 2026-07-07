@@ -32,7 +32,7 @@ class MusicStaffPainter extends CustomPainter {
     final double midY = size.height / 2;
 
     final linePaint = Paint()
-      ..color = AppTheme.textMuted.withOpacity(0.5)
+      ..color = AppTheme.textMuted.withValues(alpha: 0.5)
       ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke;
 
@@ -174,7 +174,7 @@ class MusicStaffPainter extends CustomPainter {
     if (isActive) {
       final glowPaint = Paint()
         ..color = (element.isRest ? AppTheme.accentPink : AppTheme.secondaryCyan)
-            .withOpacity(0.35)
+            .withValues(alpha: 0.35)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       canvas.drawCircle(Offset(x, midY), 22, glowPaint);
     }
@@ -257,7 +257,7 @@ class MusicStaffPainter extends CustomPainter {
     if (count == 0) return;
 
     final ledgerPaint = Paint()
-      ..color = AppTheme.textMuted.withOpacity(0.7)
+      ..color = AppTheme.textMuted.withValues(alpha: 0.7)
       ..strokeWidth = 1.2;
 
     final above = geometry.isLedgerAbove(noteName);
@@ -398,7 +398,7 @@ class MusicStaffPainter extends CustomPainter {
       final stemPaint = Paint()
         ..color = isThisNoteActive
             ? AppTheme.secondaryCyan
-            : (isActive ? AppTheme.secondaryCyan.withOpacity(0.5) : AppTheme.textPrimary)
+            : (isActive ? AppTheme.secondaryCyan.withValues(alpha: 0.5) : AppTheme.textPrimary)
         ..strokeWidth = 1.3
         ..style = PaintingStyle.stroke;
 

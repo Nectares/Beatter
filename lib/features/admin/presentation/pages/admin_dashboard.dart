@@ -82,9 +82,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryPurple.withOpacity(0.2),
+                            color: AppTheme.primaryPurple.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppTheme.primaryPurple.withOpacity(0.5)),
+                            border: Border.all(color: AppTheme.primaryPurple.withValues(alpha: 0.5)),
                           ),
                           child: const Icon(Icons.admin_panel_settings_rounded, color: AppTheme.primaryPurple),
                         ),

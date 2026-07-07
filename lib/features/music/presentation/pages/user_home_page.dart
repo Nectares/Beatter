@@ -6,7 +6,6 @@ import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../core/widgets/toast.dart';
 
 import 'flow_mode_page.dart';
-import 'composition_library_page.dart';
 import '../widgets/app_drawer.dart';
 
 class UserHomePage extends StatefulWidget {
@@ -77,7 +76,7 @@ class _UserHomePageState extends State<UserHomePage> {
                 height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.secondaryCyan.withOpacity(0.15),
+                  color: AppTheme.secondaryCyan.withValues(alpha: 0.15),
                 ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
@@ -93,7 +92,7 @@ class _UserHomePageState extends State<UserHomePage> {
                 height: 250,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primaryPurple.withOpacity(0.12),
+                  color: AppTheme.primaryPurple.withValues(alpha: 0.12),
                 ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
@@ -210,9 +209,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.secondaryCyan.withOpacity(
-                                      0.3,
-                                    ),
+                                    color: AppTheme.secondaryCyan.withValues(alpha: 0.3),
                                     blurRadius: 15,
                                     offset: const Offset(0, 5),
                                     spreadRadius: 1,
@@ -225,7 +222,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
@@ -305,7 +302,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.accentPink.withOpacity(0.3),
+                                    color: AppTheme.accentPink.withValues(alpha: 0.3),
                                     blurRadius: 15,
                                     offset: const Offset(0, 5),
                                     spreadRadius: 1,
@@ -317,7 +314,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
@@ -397,9 +394,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primaryPurple.withOpacity(
-                                      0.3,
-                                    ),
+                                    color: AppTheme.primaryPurple.withValues(alpha: 0.3),
                                     blurRadius: 15,
                                     offset: const Offset(0, 5),
                                     spreadRadius: 1,
@@ -411,7 +406,7 @@ class _UserHomePageState extends State<UserHomePage> {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
@@ -535,7 +530,7 @@ class _UserHomePageState extends State<UserHomePage> {
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Text(
@@ -591,9 +586,9 @@ class _UserHomePageState extends State<UserHomePage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.textMuted.withOpacity(0.3)),
+                border: Border.all(color: AppTheme.textMuted.withValues(alpha: 0.3)),
               ),
               child: const Text(
                 'Coming Soon',

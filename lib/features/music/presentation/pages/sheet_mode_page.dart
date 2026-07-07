@@ -167,7 +167,7 @@ class _SheetModePageState extends State<SheetModePage> with SingleTickerProvider
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryPurple.withOpacity(0.12),
+                        color: AppTheme.primaryPurple.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.music_note_rounded, color: AppTheme.primaryPurple),

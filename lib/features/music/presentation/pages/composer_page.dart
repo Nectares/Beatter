@@ -213,8 +213,9 @@ class _ComposerPageState extends State<ComposerPage> {
   }
 
   void _handleDragUpdate(String pitch) {
-    if (_selectedFlatIndex == -1 || _selectedFlatIndex >= _flatSequence.length)
+    if (_selectedFlatIndex == -1 || _selectedFlatIndex >= _flatSequence.length) {
       return;
+    }
     final old = _flatSequence[_selectedFlatIndex];
     if (old.noteName == pitch) return;
 
@@ -521,8 +522,8 @@ class _ComposerPageState extends State<ComposerPage> {
           label: Text(sig),
           selected: selected,
           onSelected: (_) => _handleTimeSignatureChanged(sig),
-          selectedColor: AppTheme.primaryPurple.withOpacity(0.15),
-          backgroundColor: AppTheme.cardBorder.withOpacity(0.3),
+          selectedColor: AppTheme.primaryPurple.withValues(alpha: 0.15),
+          backgroundColor: AppTheme.cardBorder.withValues(alpha: 0.3),
           side: BorderSide(
             color: selected ? AppTheme.primaryPurple : Colors.transparent,
           ),

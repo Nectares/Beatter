@@ -112,7 +112,9 @@ class AppDrawer extends StatelessWidget {
 
   static Widget _buildHome() => const UserHomePage();
   static Widget _buildFlowMode() => const FlowModePage();
+  // ignore: unused_element
   static Widget _buildSheetMode() => const SheetModePage();
+  // ignore: unused_element
   static Widget _buildComposerMode() => const CompositionLibraryPage();
 
   void _navigate(BuildContext context, _DrawerItem item) {
@@ -158,7 +160,7 @@ class AppDrawer extends StatelessWidget {
               ),
               border: Border(
                 right: BorderSide(
-                  color: AppTheme.cardBorder.withOpacity(0.6),
+                  color: AppTheme.cardBorder.withValues(alpha: 0.6),
                   width: 1.5,
                 ),
               ),
@@ -176,7 +178,7 @@ class AppDrawer extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Divider(
                       height: 1,
-                      color: AppTheme.cardBorder.withOpacity(0.8),
+                      color: AppTheme.cardBorder.withValues(alpha: 0.8),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -193,7 +195,7 @@ class AppDrawer extends StatelessWidget {
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.8,
-                        color: AppTheme.textMuted.withOpacity(0.9),
+                        color: AppTheme.textMuted.withValues(alpha: 0.9),
                       ),
                     ),
                   ),
@@ -243,7 +245,7 @@ class AppDrawer extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryPurple.withOpacity(0.35),
+                  color: AppTheme.primaryPurple.withValues(alpha: 0.35),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -296,19 +298,19 @@ class AppDrawer extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
             onTap: item.isComingSoon ? null : () => _navigate(context, item),
-            splashColor: AppTheme.primaryPurple.withOpacity(0.1),
-            highlightColor: AppTheme.primaryPurple.withOpacity(0.06),
+            splashColor: AppTheme.primaryPurple.withValues(alpha: 0.1),
+            highlightColor: AppTheme.primaryPurple.withValues(alpha: 0.06),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: isActive
-                    ? AppTheme.primaryPurple.withOpacity(0.12)
+                    ? AppTheme.primaryPurple.withValues(alpha: 0.12)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(14),
                 border: isActive
                     ? Border.all(
-                        color: AppTheme.primaryPurple.withOpacity(0.25),
+                        color: AppTheme.primaryPurple.withValues(alpha: 0.25),
                         width: 1.2,
                       )
                     : null,
@@ -321,8 +323,8 @@ class AppDrawer extends StatelessWidget {
                     height: 38,
                     decoration: BoxDecoration(
                       color: isActive
-                          ? AppTheme.primaryPurple.withOpacity(0.15)
-                          : AppTheme.cardBorder.withOpacity(0.4),
+                          ? AppTheme.primaryPurple.withValues(alpha: 0.15)
+                          : AppTheme.cardBorder.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -356,7 +358,7 @@ class AppDrawer extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 11,
                             color: isActive
-                                ? AppTheme.primaryPurple.withOpacity(0.7)
+                                ? AppTheme.primaryPurple.withValues(alpha: 0.7)
                                 : AppTheme.textMuted,
                           ),
                         ),
@@ -371,10 +373,10 @@ class AppDrawer extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.cardBorder.withOpacity(0.5),
+                        color: AppTheme.cardBorder.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: AppTheme.textMuted.withOpacity(0.2),
+                          color: AppTheme.textMuted.withValues(alpha: 0.2),
                         ),
                       ),
                       child: const Text(
@@ -415,9 +417,9 @@ class AppDrawer extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.05),
+            color: Colors.red.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.red.withOpacity(0.15), width: 1.2),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.15), width: 1.2),
           ),
           child: Row(
             children: [
@@ -425,7 +427,7 @@ class AppDrawer extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(

@@ -20,7 +20,7 @@ class PlaybackButton extends StatelessWidget {
     return Opacity(
       opacity: onTap != null ? 1.0 : 0.5,
       child: Material(
-        color: primary ? AppTheme.primaryPurple : AppTheme.cardBorder.withOpacity(0.5),
+        color: primary ? AppTheme.primaryPurple : AppTheme.cardBorder.withValues(alpha: 0.5),
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),

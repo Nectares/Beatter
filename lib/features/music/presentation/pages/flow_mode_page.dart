@@ -366,7 +366,7 @@ class _FlowModePageState extends State<FlowModePage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
@@ -381,7 +381,7 @@ class _FlowModePageState extends State<FlowModePage>
                     maxHeight: MediaQuery.of(context).size.height * 0.88,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.92),
+                    color: Colors.white.withValues(alpha: 0.92),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(28),
                     ),
@@ -397,7 +397,7 @@ class _FlowModePageState extends State<FlowModePage>
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: AppTheme.textMuted.withOpacity(0.4),
+                          color: AppTheme.textMuted.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -570,7 +570,7 @@ class _FlowModePageState extends State<FlowModePage>
                                                   BoxShadow(
                                                     color: AppTheme
                                                         .primaryPurple
-                                                        .withOpacity(0.2),
+                                                        .withValues(alpha: 0.2),
                                                     blurRadius: 8,
                                                     offset: const Offset(0, 3),
                                                   ),
@@ -646,7 +646,7 @@ class _FlowModePageState extends State<FlowModePage>
                                   const Spacer(),
                                   Switch(
                                     value: _isAutoGenerateEnabled,
-                                    activeColor: AppTheme.primaryPurple,
+                                    activeThumbColor: AppTheme.primaryPurple,
                                     onChanged: (val) {
                                       setSheetState(
                                         () => _isAutoGenerateEnabled = val,
@@ -691,9 +691,7 @@ class _FlowModePageState extends State<FlowModePage>
                                   child: Text(
                                     _getSpeedLabel(_autoGenerateSeconds),
                                     style: TextStyle(
-                                      color: AppTheme.textSecondary.withOpacity(
-                                        0.8,
-                                      ),
+                                      color: AppTheme.textSecondary.withValues(alpha: 0.8),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       fontStyle: FontStyle.italic,
@@ -773,7 +771,7 @@ class _FlowModePageState extends State<FlowModePage>
                                             ? [
                                                 BoxShadow(
                                                   color: AppTheme.primaryPurple
-                                                      .withOpacity(0.15),
+                                                      .withValues(alpha: 0.15),
                                                   blurRadius: 6,
                                                   spreadRadius: 1,
                                                 ),
@@ -847,7 +845,7 @@ class _FlowModePageState extends State<FlowModePage>
                                               _playbackService
                                                   .isMetronomeEnabled
                                               ? AppTheme.primaryPurple
-                                                    .withOpacity(0.1)
+                                                    .withValues(alpha: 0.1)
                                               : Colors.white,
                                           borderRadius: BorderRadius.circular(
                                             12,
@@ -1022,13 +1020,13 @@ class _FlowModePageState extends State<FlowModePage>
           height: size,
           decoration: BoxDecoration(
             color: onPressed != null
-                ? AppTheme.primaryPurple.withOpacity(0.1)
-                : Colors.black.withOpacity(0.04),
+                ? AppTheme.primaryPurple.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: onPressed != null
-                  ? AppTheme.primaryPurple.withOpacity(0.3)
-                  : AppTheme.cardBorder.withOpacity(0.5),
+                  ? AppTheme.primaryPurple.withValues(alpha: 0.3)
+                  : AppTheme.cardBorder.withValues(alpha: 0.5),
             ),
           ),
           child: Icon(
@@ -1188,13 +1186,13 @@ class _FlowModePageState extends State<FlowModePage>
         Icon(
           Icons.music_note_rounded,
           size: 64,
-          color: AppTheme.textMuted.withOpacity(0.3),
+          color: AppTheme.textMuted.withValues(alpha: 0.3),
         ),
         const SizedBox(height: 16),
         Text(
           'Genera un ritmo per iniziare',
           style: TextStyle(
-            color: AppTheme.textMuted.withOpacity(0.6),
+            color: AppTheme.textMuted.withValues(alpha: 0.6),
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -1238,7 +1236,13 @@ class _FlowModePageState extends State<FlowModePage>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
-                  transform: Matrix4.identity()..scale(isActive ? 1.06 : 1.0),
+                  transform: Matrix4.identity()
+                    ..scaleByDouble(
+                      isActive ? 1.06 : 1.0,
+                      isActive ? 1.06 : 1.0,
+                      1.0,
+                      1.0,
+                    ),
                   transformAlignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -1252,8 +1256,8 @@ class _FlowModePageState extends State<FlowModePage>
                     boxShadow: [
                       BoxShadow(
                         color: isActive
-                            ? AppTheme.primaryPurple.withOpacity(0.4)
-                            : Colors.black.withOpacity(0.04),
+                            ? AppTheme.primaryPurple.withValues(alpha: 0.4)
+                            : Colors.black.withValues(alpha: 0.04),
                         blurRadius: isActive ? 16 : 6,
                         spreadRadius: isActive ? 2 : 0,
                         offset: isActive
@@ -1292,9 +1296,9 @@ class _FlowModePageState extends State<FlowModePage>
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       decoration: BoxDecoration(
-        color: AppTheme.primaryPurple.withOpacity(0.1),
+        color: AppTheme.primaryPurple.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryPurple.withOpacity(0.2)),
+        border: Border.all(color: AppTheme.primaryPurple.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1489,7 +1493,7 @@ class _FlowModePageState extends State<FlowModePage>
         vertical: isLandscape ? 16 : 16,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.6),
+        color: Colors.white.withValues(alpha: 0.6),
         border: Border(
           top: isLandscape
               ? BorderSide.none
@@ -1539,7 +1543,7 @@ class _FlowModePageState extends State<FlowModePage>
           shape: BoxShape.circle,
           gradient: LinearGradient(
             colors: isDisabled
-                ? [AppTheme.cardBorder, AppTheme.cardBorder.withOpacity(0.5)]
+                ? [AppTheme.cardBorder, AppTheme.cardBorder.withValues(alpha: 0.5)]
                 : isPlaying
                 ? [const Color(0xFFFFC266), AppTheme.primaryPurple]
                 : [AppTheme.primaryPurple, const Color(0xFFFF9E47)],
@@ -1550,7 +1554,7 @@ class _FlowModePageState extends State<FlowModePage>
               ? []
               : [
                   BoxShadow(
-                    color: AppTheme.primaryPurple.withOpacity(0.4),
+                    color: AppTheme.primaryPurple.withValues(alpha: 0.4),
                     blurRadius: 12,
                     spreadRadius: 1,
                     offset: const Offset(0, 3),
@@ -1584,9 +1588,9 @@ class _FlowModePageState extends State<FlowModePage>
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.08),
+              color: color.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
-              border: Border.all(color: color.withOpacity(0.2), width: 1.2),
+              border: Border.all(color: color.withValues(alpha: 0.2), width: 1.2),
             ),
             child: Icon(icon, color: color, size: isCompact ? 17 : 22),
           ),
@@ -1594,7 +1598,7 @@ class _FlowModePageState extends State<FlowModePage>
           Text(
             label,
             style: TextStyle(
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
               fontSize: isCompact ? 9 : 10,
               fontWeight: FontWeight.w600,
             ),

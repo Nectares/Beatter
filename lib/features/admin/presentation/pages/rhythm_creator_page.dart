@@ -277,7 +277,7 @@ class _RhythmCreatorPageState extends State<RhythmCreatorPage> {
                             boxShadow: isActive
                                 ? [
                                     BoxShadow(
-                                      color: AppTheme.primaryPurple.withOpacity(0.5),
+                                      color: AppTheme.primaryPurple.withValues(alpha: 0.5),
                                       blurRadius: 10,
                                       spreadRadius: 1,
                                     )

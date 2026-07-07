@@ -3,6 +3,8 @@
 ///
 /// All positions are expressed relative to a treble clef, 5-line staff whose
 /// middle line is B4.
+library;
+
 import '../../models/rhythm_element.dart';
 
 const double lineSpacing = 10.0;

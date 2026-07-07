@@ -124,7 +124,7 @@ class _LoginPageState extends State<LoginPage>
                 height: size.width * 0.8,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.primaryPurple.withOpacity(0.15),
+                  color: AppTheme.primaryPurple.withValues(alpha: 0.15),
                 ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 80.0, sigmaY: 80.0),
@@ -140,7 +140,7 @@ class _LoginPageState extends State<LoginPage>
                 height: size.width * 0.9,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppTheme.secondaryCyan.withOpacity(0.12),
+                  color: AppTheme.secondaryCyan.withValues(alpha: 0.12),
                 ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 90.0, sigmaY: 90.0),
@@ -223,7 +223,7 @@ class _LoginPageState extends State<LoginPage>
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryPurple.withOpacity(0.2),
+                    color: AppTheme.primaryPurple.withValues(alpha: 0.2),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -282,7 +282,7 @@ class _LoginPageState extends State<LoginPage>
                 // Custom Tab Switcher (Segmented Selector)
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFCD5B5).withOpacity(0.3),
+                    color: const Color(0xFFFCD5B5).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppTheme.cardBorder),
                   ),

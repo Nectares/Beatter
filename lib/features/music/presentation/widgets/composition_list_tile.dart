@@ -37,7 +37,7 @@ class CompositionListTile extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryPurple.withOpacity(0.12),
+                    color: AppTheme.primaryPurple.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.edit_note_rounded, color: AppTheme.primaryPurple),

@@ -32,7 +32,7 @@ class AppTheme {
         border: Border.all(color: cardBorder, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFF7A00).withOpacity(0.06), // Very soft warm orange shadow
+            color: const Color(0xFFFF7A00).withValues(alpha: 0.06), // Very soft warm orange shadow
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -59,12 +59,10 @@ class AppTheme {
         primaryContainer: Color(0xFFFFA347),
         secondary: accentPink,
         surface: Colors.white,
-        background: backgroundStart,
         error: Color(0xFFEF4444),
         onPrimary: Colors.white,
         onSecondary: textPrimary,
         onSurface: textPrimary,
-        onBackground: textPrimary,
       ),
       textSelectionTheme: const TextSelectionThemeData(
         cursorColor: primaryPurple,
@@ -76,7 +74,7 @@ class AppTheme {
         activeTrackColor: primaryPurple,
         inactiveTrackColor: const Color(0xFFFFEAD6),
         thumbColor: primaryPurple,
-        overlayColor: primaryPurple.withOpacity(0.12),
+        overlayColor: primaryPurple.withValues(alpha: 0.12),
         valueIndicatorColor: primaryPurple,
         valueIndicatorTextStyle: const TextStyle(color: Colors.white),
       ),
@@ -106,14 +104,14 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFFFFEAD6),
-        iconTheme: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: primaryPurple);
           }
           return const IconThemeData(color: textSecondary);
         }),
-        labelTextStyle: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const TextStyle(color: primaryPurple, fontWeight: FontWeight.bold);
           }
           return const TextStyle(color: textSecondary);
