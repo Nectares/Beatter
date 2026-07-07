@@ -62,14 +62,16 @@ class AppDrawer extends StatelessWidget {
       subtitle: 'Trascrizioni e partiture',
       icon: Icons.menu_book_rounded,
       emoji: '📄',
-      pageBuilder: _buildSheetMode,
+      //pageBuilder: _buildSheetMode,
+      isComingSoon: true, // TEMPORARILY DISABLED - Needs to be finished
     ),
     _DrawerItem(
       label: 'Composer Mode',
       subtitle: 'Componi le tue melodie',
       icon: Icons.edit_note_rounded,
       emoji: '✍️',
-      pageBuilder: _buildComposerMode,
+      //pageBuilder: _buildComposerMode,
+      isComingSoon: true, // TEMPORARILY DISABLED - Needs to be finished
     ),
     _DrawerItem(
       label: 'Polyrhythms',
@@ -123,10 +125,8 @@ class AppDrawer extends StatelessWidget {
       context,
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => item.pageBuilder!(),
-        transitionsBuilder: (_, animation, __, child) => FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 220),
       ),
     );
@@ -184,7 +184,9 @@ class AppDrawer extends StatelessWidget {
                   // ── Section label ────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 4),
+                      horizontal: 24,
+                      vertical: 4,
+                    ),
                     child: Text(
                       'STRUMENTI',
                       style: TextStyle(
@@ -201,7 +203,9 @@ class AppDrawer extends StatelessWidget {
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 0),
+                        horizontal: 12,
+                        vertical: 0,
+                      ),
                       children: _items
                           .map((item) => _buildNavItem(context, item))
                           .toList(),
@@ -362,7 +366,10 @@ class AppDrawer extends StatelessWidget {
                   // Active indicator dot or Soon badge
                   if (item.isComingSoon)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.cardBorder.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(6),
@@ -410,10 +417,7 @@ class AppDrawer extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.red.withOpacity(0.05),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: Colors.red.withOpacity(0.15),
-              width: 1.2,
-            ),
+            border: Border.all(color: Colors.red.withOpacity(0.15), width: 1.2),
           ),
           child: Row(
             children: [

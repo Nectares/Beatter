@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/layout/responsive_context.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/toast.dart';
 
 import 'flow_mode_page.dart';
-import 'sheet_mode_page.dart';
 import 'composition_library_page.dart';
 import '../widgets/app_drawer.dart';
 
@@ -277,12 +277,18 @@ class _UserHomePageState extends State<UserHomePage> {
                           // Sheet Mode
                           GestureDetector(
                             onTap: () {
-                              Navigator.push(
+                              Toast.show(
+                                ToastType.warning,
+                                "Funzionalità in arrivo!",
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SheetModePage(),
-                                ),
                               );
+
+                              //Navigator.push(
+                              //   context,
+                              //   MaterialPageRoute(
+                              //     builder: (context) => const SheetModePage(),
+                              //   ),
+                              // );
                             },
                             child: Container(
                               width: double.infinity,
@@ -363,12 +369,18 @@ class _UserHomePageState extends State<UserHomePage> {
                           // Composer Mode
                           GestureDetector(
                             onTap: () {
-                              Navigator.push(
+                              Toast.show(
+                                ToastType.warning,
+                                "Funzionalità in arrivo!",
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => const CompositionLibraryPage(),
-                                ),
                               );
+                              //Navigator.push(
+                              //   context,
+                              //   MaterialPageRoute(
+                              //     builder: (context) =>
+                              //         const CompositionLibraryPage(),
+                              //   ),
+                              // );
                             },
                             child: Container(
                               width: double.infinity,
@@ -385,7 +397,9 @@ class _UserHomePageState extends State<UserHomePage> {
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primaryPurple.withOpacity(0.3),
+                                    color: AppTheme.primaryPurple.withOpacity(
+                                      0.3,
+                                    ),
                                     blurRadius: 15,
                                     offset: const Offset(0, 5),
                                     spreadRadius: 1,
