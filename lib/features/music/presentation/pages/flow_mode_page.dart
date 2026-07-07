@@ -1047,8 +1047,12 @@ class _FlowModePageState extends State<FlowModePage>
     _generateNewRhythm();
   }
 
-  Widget _buildSlotCountControl({bool isCompact = false, bool isVertical = false}) {
-    final double buttonSize = isCompact ? 28 : 38;
+  Widget _buildSlotCountControl({
+    bool isCompact = false,
+    bool isVertical = false,
+    double scale = 1.0,
+  }) {
+    final double buttonSize = (isCompact ? 28.0 : 38.0) * scale;
     final minusButton = _buildCounterButton(
       icon: Icons.remove_rounded,
       size: buttonSize,
@@ -1063,23 +1067,25 @@ class _FlowModePageState extends State<FlowModePage>
       '$_slotsCount',
       textAlign: TextAlign.center,
       style: TextStyle(
-        fontSize: isCompact ? 13 : 16,
+        fontSize: (isCompact ? 13.0 : 16.0) * scale,
         fontWeight: FontWeight.w900,
         color: AppTheme.textPrimary,
       ),
     );
 
     // Vertical (narrow landscape side panel): stacked so the control never
-    // needs more width than a single button.
+    // needs more width than a single button. Order is + on top, - on the
+    // bottom (mirrored from the portrait row) so the raise action sits
+    // closer to the top of the panel.
     if (isVertical) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          minusButton,
+          plusButton,
           const SizedBox(height: 2),
           countLabel,
           const SizedBox(height: 2),
-          plusButton,
+          minusButton,
         ],
       );
     }
@@ -1095,12 +1101,16 @@ class _FlowModePageState extends State<FlowModePage>
   }
 
   // ── Quick speed (BPM) slider (main screen, outside the settings sheet) ──
-  Widget _buildSpeedSlider({bool isVertical = false, double verticalHeight = 110}) {
+  Widget _buildSpeedSlider({
+    bool isVertical = false,
+    double verticalHeight = 110,
+    double scale = 1.0,
+  }) {
     final slider = SliderTheme(
       data: SliderTheme.of(context).copyWith(
-        trackHeight: 3,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-        overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+        trackHeight: 3 * scale,
+        thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7 * scale),
+        overlayShape: RoundSliderOverlayShape(overlayRadius: 14 * scale),
       ),
       child: Slider(
         value: _bpm.toDouble().clamp(40, 240),
@@ -1115,28 +1125,36 @@ class _FlowModePageState extends State<FlowModePage>
     if (isVertical) {
       return SizedBox(
         height: verticalHeight,
-        width: 28,
+        width: 28 * scale,
         child: RotatedBox(quarterTurns: 3, child: slider),
       );
     }
     return slider;
   }
 
-  Widget _buildSpeedControl({bool isCompact = false, double sliderHeight = 110}) {
+  Widget _buildSpeedControl({
+    bool isCompact = false,
+    double sliderHeight = 110,
+    double scale = 1.0,
+  }) {
     if (isCompact) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.speed_rounded,
             color: AppTheme.textSecondary,
-            size: 16,
+            size: 16 * scale,
           ),
-          _buildSpeedSlider(isVertical: true, verticalHeight: sliderHeight),
+          _buildSpeedSlider(
+            isVertical: true,
+            verticalHeight: sliderHeight,
+            scale: scale,
+          ),
           Text(
             '$_bpm',
-            style: const TextStyle(
-              fontSize: 11,
+            style: TextStyle(
+              fontSize: 11 * scale,
               fontWeight: FontWeight.bold,
               color: AppTheme.primaryPurple,
             ),
@@ -1405,24 +1423,58 @@ class _FlowModePageState extends State<FlowModePage>
         : _buildSlotsGrid(isLandscape);
   }
 
-  // Landscape side panel content: adapts its spacing/slider size to the
-  // available height (so it stays comfortable on tablets and shrinks
-  // gracefully on small phones) and is wrapped in a scroll view as a safety
-  // net so it can never hard-overflow, even on very short screens.
-  Widget _buildLandscapeControlsColumn(
-    bool isPlaying,
-    Widget autoButton,
-    Widget generateButton,
-  ) {
+  // Landscape side panel content: adapts its spacing/slider/button size to
+  // the available width and height, so it stays tiny (but overflow-safe) on
+  // very small phones and grows comfortably on tablets/large screens instead
+  // of staying pinned to phone-sized buttons. Wrapped in a scroll view as a
+  // safety net so it can never hard-overflow, even on very short screens.
+  double _landscapePanelScale(double width, double height) {
+    final double widthT = ((width - 110.0) / 140.0).clamp(0.0, 1.0);
+    final double heightT = ((height - 320.0) / 380.0).clamp(0.0, 1.0);
+    final double t = math.min(widthT, heightT);
+    return 1.0 + t * 0.5; // 1.0 (small screens) .. 1.5 (large screens)
+  }
+
+  Widget _buildLandscapeControlsColumn(bool isPlaying) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double availableHeight = constraints.maxHeight;
-        final double sliderHeight = availableHeight < 260
-            ? 55.0
-            : availableHeight < 340
-            ? 80.0
-            : 110.0;
-        final double gap = availableHeight < 260 ? 6.0 : 12.0;
+        final double scale = _landscapePanelScale(
+          constraints.maxWidth,
+          availableHeight,
+        );
+        final double sliderHeight =
+            (availableHeight < 260
+                ? 55.0
+                : availableHeight < 340
+                ? 80.0
+                : 110.0) *
+            scale;
+        final double gap = (availableHeight < 260 ? 6.0 : 12.0) * scale;
+
+        final Widget autoButton = _buildControlButton(
+          icon: Icons.autorenew_rounded,
+          color: _isAutoGenerateEnabled
+              ? AppTheme.primaryPurple
+              : AppTheme.textSecondary,
+          onTap: () {
+            setState(() {
+              _onAutoGenerateToggled(!_isAutoGenerateEnabled);
+            });
+          },
+          label: 'Auto',
+          isCompact: true,
+          scale: scale,
+        );
+
+        final Widget generateButton = _buildControlButton(
+          icon: Icons.shuffle_rounded,
+          color: AppTheme.primaryPurple,
+          onTap: () => _generateNewRhythm(),
+          label: 'Generate',
+          isCompact: true,
+          scale: scale,
+        );
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -1436,11 +1488,19 @@ class _FlowModePageState extends State<FlowModePage>
               children: [
                 autoButton,
                 SizedBox(height: gap),
-                _buildSlotCountControl(isCompact: true, isVertical: true),
+                _buildSlotCountControl(
+                  isCompact: true,
+                  isVertical: true,
+                  scale: scale,
+                ),
                 SizedBox(height: gap),
-                _buildPlayButton(isPlaying, isCompact: true),
+                _buildPlayButton(isPlaying, isCompact: true, scale: scale),
                 SizedBox(height: gap),
-                _buildSpeedControl(isCompact: true, sliderHeight: sliderHeight),
+                _buildSpeedControl(
+                  isCompact: true,
+                  sliderHeight: sliderHeight,
+                  scale: scale,
+                ),
                 SizedBox(height: gap),
                 generateButton,
               ],
@@ -1457,28 +1517,6 @@ class _FlowModePageState extends State<FlowModePage>
   // everything stacked in a column, so the notation grid keeps full height.
   Widget _buildControlsBar(bool isLandscape) {
     final bool isPlaying = _playbackService.isPlaying;
-
-    final Widget autoButton = _buildControlButton(
-      icon: Icons.autorenew_rounded,
-      color: _isAutoGenerateEnabled
-          ? AppTheme.primaryPurple
-          : AppTheme.textSecondary,
-      onTap: () {
-        setState(() {
-          _onAutoGenerateToggled(!_isAutoGenerateEnabled);
-        });
-      },
-      label: 'Auto',
-      isCompact: isLandscape,
-    );
-
-    final Widget generateButton = _buildControlButton(
-      icon: Icons.shuffle_rounded,
-      color: AppTheme.primaryPurple,
-      onTap: () => _generateNewRhythm(),
-      label: 'Generate',
-      isCompact: isLandscape,
-    );
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -1497,7 +1535,7 @@ class _FlowModePageState extends State<FlowModePage>
         ),
       ),
       child: isLandscape
-          ? _buildLandscapeControlsColumn(isPlaying, autoButton, generateButton)
+          ? _buildLandscapeControlsColumn(isPlaying)
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1512,9 +1550,25 @@ class _FlowModePageState extends State<FlowModePage>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    autoButton,
+                    _buildControlButton(
+                      icon: Icons.autorenew_rounded,
+                      color: _isAutoGenerateEnabled
+                          ? AppTheme.primaryPurple
+                          : AppTheme.textSecondary,
+                      onTap: () {
+                        setState(() {
+                          _onAutoGenerateToggled(!_isAutoGenerateEnabled);
+                        });
+                      },
+                      label: 'Auto',
+                    ),
                     _buildPlayButton(isPlaying),
-                    generateButton,
+                    _buildControlButton(
+                      icon: Icons.shuffle_rounded,
+                      color: AppTheme.primaryPurple,
+                      onTap: () => _generateNewRhythm(),
+                      label: 'Generate',
+                    ),
                   ],
                 ),
               ],
@@ -1522,9 +1576,13 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  Widget _buildPlayButton(bool isPlaying, {bool isCompact = false}) {
+  Widget _buildPlayButton(
+    bool isPlaying, {
+    bool isCompact = false,
+    double scale = 1.0,
+  }) {
     final isDisabled = _generatedSlots.isEmpty;
-    final double size = isCompact ? 44 : 56;
+    final double size = (isCompact ? 44.0 : 56.0) * scale;
 
     return GestureDetector(
       onTap: isDisabled ? null : _togglePlay,
@@ -1557,7 +1615,7 @@ class _FlowModePageState extends State<FlowModePage>
         child: Icon(
           isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
           color: isDisabled ? Colors.white54 : Colors.white,
-          size: isCompact ? 24 : 32,
+          size: (isCompact ? 24.0 : 32.0) * scale,
         ),
       ),
     );
@@ -1569,8 +1627,9 @@ class _FlowModePageState extends State<FlowModePage>
     required VoidCallback onTap,
     required String label,
     bool isCompact = false,
+    double scale = 1.0,
   }) {
-    final double size = isCompact ? 34 : 44;
+    final double size = (isCompact ? 34.0 : 44.0) * scale;
 
     return GestureDetector(
       onTap: onTap,
@@ -1585,14 +1644,14 @@ class _FlowModePageState extends State<FlowModePage>
               borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
               border: Border.all(color: color.withValues(alpha: 0.2), width: 1.2),
             ),
-            child: Icon(icon, color: color, size: isCompact ? 17 : 22),
+            child: Icon(icon, color: color, size: (isCompact ? 17.0 : 22.0) * scale),
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
               color: color.withValues(alpha: 0.8),
-              fontSize: isCompact ? 9 : 10,
+              fontSize: (isCompact ? 9.0 : 10.0) * scale,
               fontWeight: FontWeight.w600,
             ),
           ),
