@@ -570,8 +570,9 @@ class _FlowModePageState extends State<FlowModePage>
                                     icon: Icons.remove_rounded,
                                     onPressed: _slotsCount > 2
                                         ? () {
-                                            setState(() => _slotsCount--);
-                                            setSheetState(() => _slotsCount--);
+                                            _slotsCount--;
+                                            setState(() => _slotsCount);
+                                            setSheetState(() => _slotsCount);
                                             _generateNewRhythm();
                                           }
                                         : null,
@@ -590,10 +591,11 @@ class _FlowModePageState extends State<FlowModePage>
                                   ),
                                   _buildCounterButton(
                                     icon: Icons.add_rounded,
-                                    onPressed: _slotsCount < 16
+                                    onPressed: _slotsCount < 7
                                         ? () {
-                                            setState(() => _slotsCount++);
-                                            setSheetState(() => _slotsCount++);
+                                            _slotsCount++;
+                                            setState(() => _slotsCount);
+                                            setSheetState(() => _slotsCount);
                                             _generateNewRhythm();
                                           }
                                         : null,
