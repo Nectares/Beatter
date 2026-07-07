@@ -1,4 +1,4 @@
-package com.beatter.beatter
+package com.nectares.beatter
 
 import io.flutter.embedding.android.FlutterActivity
 
