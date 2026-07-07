@@ -331,17 +331,10 @@ class _FlowModePageState extends State<FlowModePage>
     return 'Molto lenta';
   }
 
-  // ── Metronome Count Helper ────────────────────────────────────────────────
-  int get _beatsPerMeasure {
-    if (_selectedTimeSignature == '3/4') return 3;
-    if (_selectedTimeSignature == '6/8') return 6;
-    return 4; // 4/4 default
-  }
-
   int get _currentBeatNumber {
     final idx = _playbackService.currentElementIndex;
     if (idx < 0) return 1;
-    return (idx % _beatsPerMeasure) + 1;
+    return (idx % _slotsCount) + 1;
   }
 
   // ── Grid Helper ──────────────────────────────────────────────────────────
