@@ -1,23 +1,19 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/layout/responsive_context.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/decorative_glow_background.dart';
+import '../../../../core/widgets/feature_card.dart';
 import '../../../../core/widgets/toast.dart';
 
 import 'flow_mode_page.dart';
 import '../widgets/app_drawer.dart';
 
-class UserHomePage extends StatefulWidget {
+class UserHomePage extends StatelessWidget {
   const UserHomePage({super.key});
 
-  @override
-  State<UserHomePage> createState() => _UserHomePageState();
-}
-
-class _UserHomePageState extends State<UserHomePage> {
   // Lista dei moduli futuri per la sezione "Prossimamente"
-  final List<Map<String, String>> comingSoonFeatures = [
+  static const List<Map<String, String>> comingSoonFeatures = [
     {
       'title': 'Rhythm Generator',
       'description':
@@ -58,6 +54,8 @@ class _UserHomePageState extends State<UserHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return BeatterScaffold(
       // ── Left Navigation Drawer ─────────────────────────────────────────
       drawer: const AppDrawer(activeLabel: 'Home'),
@@ -65,539 +63,221 @@ class _UserHomePageState extends State<UserHomePage> {
         width: double.infinity,
         height: double.infinity,
         decoration: AppTheme.backgroundGradient,
-        child: Stack(
-          children: [
-            // Sfondi sfumati decorativi (Glowing Orbs)
-            Positioned(
-              top: -100,
-              right: -100,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.secondaryCyan.withValues(alpha: 0.15),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -50,
-              left: -50,
-              child: Container(
-                width: 250,
-                height: 250,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primaryPurple.withValues(alpha: 0.12),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-            ),
-
-            SafeArea(
-              child: Column(
-                children: [
-                  // App Bar superiore personalizzata
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 8.0,
-                      vertical: context.responsive(
-                        portrait: 16.0,
-                        landscape: 8.0,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        // ── Hamburger menu ─────────────────────────────────
-                        Builder(
-                          builder: (ctx) => IconButton(
-                            icon: const Icon(
-                              Icons.menu_rounded,
-                              color: AppTheme.textPrimary,
-                              size: 26,
-                            ),
-                            tooltip: 'Menu',
-                            onPressed: () => Scaffold.of(ctx).openDrawer(),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        // User info
-                        const CircleAvatar(
-                          radius: 20,
-                          backgroundColor: AppTheme.secondaryCyan,
-                          child: Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Benvenuto,',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                            Text(
-                              'Utente Standard',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+        child: DecorativeGlowBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                // App Bar superiore personalizzata
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: context.responsive(portrait: 16.0, landscape: 8.0),
                   ),
-
-                  // Contenuto principale scorrevole
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                      child: Column(
+                  child: Row(
+                    children: [
+                      // ── Hamburger menu ─────────────────────────────────
+                      Builder(
+                        builder: (ctx) => IconButton(
+                          icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 26),
+                          tooltip: 'Menu',
+                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xxs),
+                      // User info
+                      const CircleAvatar(
+                        radius: 20,
+                        backgroundColor: AppColors.secondary,
+                        child: Icon(Icons.person, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 10),
-                          // Titolo Sezione
-                          const Text(
-                            'Funzionalità Attive',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: 0.5,
-                            ),
+                          Text('Benvenuto,', style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                          Text(
+                            'Utente Standard',
+                            style: textTheme.titleMedium?.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
                           ),
-                          const SizedBox(height: 14),
-
-                          // Flow Mode
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const FlowModePage(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(22),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    AppTheme.primaryPurple,
-                                    AppTheme.secondaryCyan,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.secondaryCyan.withValues(alpha: 0.3),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  // Icona animata/decorativa a sfera neon
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.loop_rounded,
-                                      color: Colors.white,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 18),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Flow Mode',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                        SizedBox(height: 6),
-                                        Text(
-                                          'Allenamento ritmico in loop infinito. Esegui pattern temporali senza interruzioni e mantieni il groove.',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.white70,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Icon(
-                                    Icons.arrow_forward_ios_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Sheet Mode
-                          GestureDetector(
-                            onTap: () {
-                              Toast.show(
-                                ToastType.warning,
-                                "Funzionalità in arrivo!",
-                                context,
-                              );
-
-                              //Navigator.push(
-                              //   context,
-                              //   MaterialPageRoute(
-                              //     builder: (context) => const SheetModePage(),
-                              //   ),
-                              // );
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(22),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    AppTheme.accentPink,
-                                    AppTheme.primaryPurple,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.accentPink.withValues(alpha: 0.3),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.menu_book_rounded,
-                                      color: Colors.white,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 18),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Sheet Mode',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                        SizedBox(height: 6),
-                                        Text(
-                                          'Sfoglia le tue partiture su un vero pentagramma a cinque linee.',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.white70,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Icon(
-                                    Icons.arrow_forward_ios_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Composer Mode
-                          GestureDetector(
-                            onTap: () {
-                              Toast.show(
-                                ToastType.warning,
-                                "Funzionalità in arrivo!",
-                                context,
-                              );
-                              //Navigator.push(
-                              //   context,
-                              //   MaterialPageRoute(
-                              //     builder: (context) =>
-                              //         const CompositionLibraryPage(),
-                              //   ),
-                              // );
-                            },
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(22),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    AppTheme.primaryPurple,
-                                    AppTheme.accentPink,
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryPurple.withValues(alpha: 0.3),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.edit_note_rounded,
-                                      color: Colors.white,
-                                      size: 32,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 18),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Composer Mode',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            letterSpacing: 0.3,
-                                          ),
-                                        ),
-                                        SizedBox(height: 6),
-                                        Text(
-                                          'Componi, riproduci e salva le tue melodie su un vero pentagramma.',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.white70,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  const Icon(
-                                    Icons.arrow_forward_ios_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 36),
-
-                          // Intestazione sezione "Prossimamente"
-                          const Text(
-                            'Prossimamente',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Liste delle card placeholder disabilitate con blur ed opacità ridotta
-                          context.isLandscape
-                              ? GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: comingSoonFeatures.length,
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        mainAxisSpacing: 16,
-                                        crossAxisSpacing: 16,
-                                        childAspectRatio: 2.6,
-                                      ),
-                                  itemBuilder: (context, index) =>
-                                      _buildComingSoonCard(
-                                        comingSoonFeatures[index],
-                                      ),
-                                )
-                              : ListView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: comingSoonFeatures.length,
-                                  itemBuilder: (context, index) => Container(
-                                    margin: const EdgeInsets.only(bottom: 16),
-                                    child: _buildComingSoonCard(
-                                      comingSoonFeatures[index],
-                                    ),
-                                  ),
-                                ),
-                          const SizedBox(height: 30),
                         ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Contenuto principale scorrevole
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: AppSpacing.xs),
+                            // Titolo Sezione
+                            Text(
+                              'Funzionalità Attive',
+                              style: textTheme.headlineSmall?.copyWith(fontSize: 18, letterSpacing: 0.5),
+                            ),
+                            const SizedBox(height: AppSpacing.sm + 2),
+
+                            FeatureCard(
+                              icon: Icons.loop_rounded,
+                              title: 'Flow Mode',
+                              subtitle:
+                                  'Allenamento ritmico in loop infinito. Esegui pattern temporali senza interruzioni e mantieni il groove.',
+                              accentColor: AppColors.primary,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const FlowModePage()),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            FeatureCard(
+                              icon: Icons.menu_book_rounded,
+                              title: 'Sheet Mode',
+                              subtitle: 'Sfoglia le tue partiture su un vero pentagramma a cinque linee.',
+                              accentColor: AppColors.secondary,
+                              isAvailable: false,
+                              onTap: () => Toast.show(ToastType.warning, 'Funzionalità in arrivo!', context),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            FeatureCard(
+                              icon: Icons.edit_note_rounded,
+                              title: 'Composer Mode',
+                              subtitle: 'Componi, riproduci e salva le tue melodie su un vero pentagramma.',
+                              accentColor: AppColors.tertiary,
+                              isAvailable: false,
+                              onTap: () => Toast.show(ToastType.warning, 'Funzionalità in arrivo!', context),
+                            ),
+
+                            const SizedBox(height: AppSpacing.xxxl - 4),
+
+                            // Intestazione sezione "Prossimamente"
+                            Text(
+                              'Prossimamente',
+                              style: textTheme.headlineSmall?.copyWith(fontSize: 18, letterSpacing: 0.5),
+                            ),
+                            const SizedBox(height: AppSpacing.sm + 2),
+
+                            _buildComingSoonGrid(context),
+                            const SizedBox(height: AppSpacing.xxl - 2),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildComingSoonCard(Map<String, String> feature) {
+  Widget _buildComingSoonGrid(BuildContext context) {
+    final int columns = switch (context.screenTier) {
+      ScreenTier.expanded => 3,
+      ScreenTier.medium => 2,
+      ScreenTier.compact => context.isLandscape ? 2 : 1,
+    };
+
+    if (columns == 1) {
+      return Column(
+        children: comingSoonFeatures
+            .map((f) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: _buildComingSoonCard(context, f),
+                ))
+            .toList(),
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: comingSoonFeatures.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisSpacing: AppSpacing.md,
+        crossAxisSpacing: AppSpacing.md,
+        childAspectRatio: 2.3,
+      ),
+      itemBuilder: (context, index) => _buildComingSoonCard(context, comingSoonFeatures[index]),
+    );
+  }
+
+  Widget _buildComingSoonCard(BuildContext context, Map<String, String> feature) {
+    final textTheme = Theme.of(context).textTheme;
+
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: Stack(
         children: [
-          // Card standard con opacità ridotta
           Opacity(
-            opacity: 0.45,
+            opacity: 0.55,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              decoration: AppTheme.glassCardDecoration(borderRadius: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md + 2, vertical: AppSpacing.md),
+              decoration: AppTheme.glassCardDecoration(borderRadius: AppRadius.lg),
               child: Row(
                 children: [
-                  // Icona stilizzata
                   Container(
                     width: 44,
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: AppColors.textMuted.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: Text(
-                      feature['icon']!,
-                      style: const TextStyle(fontSize: 22),
-                    ),
+                    child: Text(feature['icon']!, style: const TextStyle(fontSize: 22)),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           feature['title']!,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: AppTheme.textPrimary,
-                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleLarge?.copyWith(fontSize: 15),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.xxs),
                         Text(
                           feature['description']!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                            height: 1.25,
-                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-
-          // Filtro Blur e Badge sopra la card per inibire qualsiasi interazione
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
-                child: Container(color: Colors.transparent),
               ),
             ),
           ),
 
           // Badge "Coming Soon" in alto a destra
           Positioned(
-            top: 12,
-            right: 12,
+            top: AppSpacing.sm,
+            right: AppSpacing.sm,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xxs),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.textMuted.withValues(alpha: 0.3)),
+                color: AppColors.textPrimary.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: const Text(
+              child: Text(
                 'Coming Soon',
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textSecondary,
-                  letterSpacing: 0.5,
-                ),
+                style: textTheme.labelSmall?.copyWith(color: Colors.white, fontSize: 9),
               ),
             ),
           ),
