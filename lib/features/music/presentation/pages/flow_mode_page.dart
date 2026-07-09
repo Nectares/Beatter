@@ -9,7 +9,9 @@ import '../../../../models/rhythm_element.dart';
 import '../../../../services/rhythm_playback_service.dart';
 import '../../../../core/layout/responsive_context.dart';
 import '../../../../core/layout/two_pane_layout.dart';
+import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/empty_state.dart';
 
 import '../widgets/app_drawer.dart';
 
@@ -49,6 +51,15 @@ class _FlowModePageState extends State<FlowModePage>
   // ── UI Controllers ────────────────────────────────────────────────────────
   late TextEditingController _bpmTextController;
 
+  // Purely presentational: a free-running pulse synced to the current BPM,
+  // used to give the metronome indicator a visible "heartbeat" while
+  // playing. Not sample-accurate against the audio clock (the service only
+  // notifies listeners on note/rest events, not on every metronome click),
+  // but imperceptible for a glance-at visual cue.
+  late final AnimationController _beatPulseController = AnimationController(
+    vsync: this,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -78,8 +89,25 @@ class _FlowModePageState extends State<FlowModePage>
     _playbackService.dispose();
     _bpmTextController.dispose();
     _gridScrollController.dispose();
+    _beatPulseController.dispose();
     _stopAutoGenerateTimer();
     super.dispose();
+  }
+
+  // ── Beat-pulse sync ──────────────────────────────────────────────────────
+  void _syncBeatPulse() {
+    if (_playbackService.isPlaying) {
+      final ms = (60000 / _playbackService.bpm).round().clamp(150, 2000);
+      if (!_beatPulseController.isAnimating ||
+          _beatPulseController.duration?.inMilliseconds != ms) {
+        _beatPulseController.duration = Duration(milliseconds: ms);
+        _beatPulseController.repeat(reverse: true);
+      }
+    } else if (_beatPulseController.isAnimating) {
+      _beatPulseController
+        ..stop()
+        ..value = 0;
+    }
   }
 
   // ── Load Assets Dynamically ────────────────────────────────────────────────
@@ -231,6 +259,7 @@ class _FlowModePageState extends State<FlowModePage>
   void _onPlaybackChanged() {
     if (!mounted) return;
     setState(() {});
+    _syncBeatPulse();
     _scrollActiveSlotIntoView();
   }
 
@@ -264,6 +293,7 @@ class _FlowModePageState extends State<FlowModePage>
     if (p != null && p >= 40 && p <= 240) {
       setState(() => _bpm = p);
       _playbackService.updateSettings(bpm: p);
+      _syncBeatPulse();
     }
   }
 
@@ -273,6 +303,7 @@ class _FlowModePageState extends State<FlowModePage>
       _bpmTextController.text = _bpm.toString();
     });
     _playbackService.updateSettings(bpm: _bpm);
+    _syncBeatPulse();
   }
 
   // ── Playback Controls ────────────────────────────────────────────────────
@@ -379,7 +410,7 @@ class _FlowModePageState extends State<FlowModePage>
                       top: Radius.circular(28),
                     ),
                     border: Border(
-                      top: BorderSide(color: AppTheme.cardBorder, width: 1.5),
+                      top: BorderSide(color: AppColors.surfaceBorder, width: 1.5),
                     ),
                   ),
                   child: Column(
@@ -390,7 +421,7 @@ class _FlowModePageState extends State<FlowModePage>
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: AppTheme.textMuted.withValues(alpha: 0.4),
+                          color: AppColors.textMuted.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -404,14 +435,14 @@ class _FlowModePageState extends State<FlowModePage>
                           children: [
                             const Icon(
                               Icons.tune_rounded,
-                              color: AppTheme.primaryPurple,
+                              color: AppColors.primary,
                               size: 24,
                             ),
                             const SizedBox(width: 10),
                             const Text(
                               'Rhythm Settings',
                               style: TextStyle(
-                                color: AppTheme.textPrimary,
+                                color: AppColors.textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -420,14 +451,14 @@ class _FlowModePageState extends State<FlowModePage>
                             IconButton(
                               icon: const Icon(
                                 Icons.close_rounded,
-                                color: AppTheme.textSecondary,
+                                color: AppColors.textSecondary,
                               ),
                               onPressed: () => Navigator.pop(context),
                             ),
                           ],
                         ),
                       ),
-                      const Divider(height: 1, color: AppTheme.cardBorder),
+                      const Divider(height: 1, color: AppColors.surfaceBorder),
 
                       // Scrollable Controls
                       Expanded(
@@ -447,8 +478,8 @@ class _FlowModePageState extends State<FlowModePage>
                                       value: _bpm.toDouble(),
                                       min: 40,
                                       max: 240,
-                                      activeColor: AppTheme.primaryPurple,
-                                      inactiveColor: const Color(0xFFFFEAD6),
+                                      activeColor: AppColors.primary,
+                                      inactiveColor: AppColors.inactiveTrack,
                                       onChanged: (v) {
                                         setSheetState(() => _bpm = v.toInt());
                                         _onBpmSlider(v);
@@ -468,7 +499,7 @@ class _FlowModePageState extends State<FlowModePage>
                                       ],
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
-                                        color: AppTheme.primaryPurple,
+                                        color: AppColors.primary,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
                                       ),
@@ -483,7 +514,7 @@ class _FlowModePageState extends State<FlowModePage>
                                             8,
                                           ),
                                           borderSide: const BorderSide(
-                                            color: AppTheme.cardBorder,
+                                            color: AppColors.surfaceBorder,
                                           ),
                                         ),
                                         focusedBorder: OutlineInputBorder(
@@ -491,7 +522,7 @@ class _FlowModePageState extends State<FlowModePage>
                                             8,
                                           ),
                                           borderSide: const BorderSide(
-                                            color: AppTheme.primaryPurple,
+                                            color: AppColors.primary,
                                             width: 1.5,
                                           ),
                                         ),
@@ -547,22 +578,21 @@ class _FlowModePageState extends State<FlowModePage>
                                         ),
                                         decoration: BoxDecoration(
                                           color: isSelected
-                                              ? AppTheme.primaryPurple
+                                              ? AppColors.primary
                                               : Colors.white,
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
                                           border: Border.all(
                                             color: isSelected
-                                                ? AppTheme.primaryPurple
-                                                : AppTheme.cardBorder,
+                                                ? AppColors.primary
+                                                : AppColors.surfaceBorder,
                                             width: 1.5,
                                           ),
                                           boxShadow: isSelected
                                               ? [
                                                   BoxShadow(
-                                                    color: AppTheme
-                                                        .primaryPurple
+                                                    color: AppColors.primary
                                                         .withValues(alpha: 0.2),
                                                     blurRadius: 8,
                                                     offset: const Offset(0, 3),
@@ -576,7 +606,7 @@ class _FlowModePageState extends State<FlowModePage>
                                           style: TextStyle(
                                             color: isSelected
                                                 ? Colors.white
-                                                : AppTheme.textSecondary,
+                                                : AppColors.textSecondary,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16,
                                           ),
@@ -613,7 +643,7 @@ class _FlowModePageState extends State<FlowModePage>
                                       style: const TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w900,
-                                        color: AppTheme.textPrimary,
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -639,7 +669,7 @@ class _FlowModePageState extends State<FlowModePage>
                                   const Spacer(),
                                   Switch(
                                     value: _isAutoGenerateEnabled,
-                                    activeThumbColor: AppTheme.primaryPurple,
+                                    activeThumbColor: AppColors.primary,
                                     onChanged: (val) {
                                       setSheetState(
                                         () => _isAutoGenerateEnabled = val,
@@ -659,8 +689,8 @@ class _FlowModePageState extends State<FlowModePage>
                                         min: 2.0,
                                         max: 15.0,
                                         divisions: 13,
-                                        activeColor: AppTheme.primaryPurple,
-                                        inactiveColor: const Color(0xFFFFEAD6),
+                                        activeColor: AppColors.primary,
+                                        inactiveColor: AppColors.inactiveTrack,
                                         onChanged: (v) {
                                           setSheetState(
                                             () => _autoGenerateSeconds = v,
@@ -673,7 +703,7 @@ class _FlowModePageState extends State<FlowModePage>
                                     Text(
                                       '${_autoGenerateSeconds.toInt()}s',
                                       style: const TextStyle(
-                                        color: AppTheme.primaryPurple,
+                                        color: AppColors.primary,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 15,
                                       ),
@@ -684,7 +714,7 @@ class _FlowModePageState extends State<FlowModePage>
                                   child: Text(
                                     _getSpeedLabel(_autoGenerateSeconds),
                                     style: TextStyle(
-                                      color: AppTheme.textSecondary.withValues(alpha: 0.8),
+                                      color: AppColors.textSecondary.withValues(alpha: 0.8),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       fontStyle: FontStyle.italic,
@@ -714,7 +744,7 @@ class _FlowModePageState extends State<FlowModePage>
                                     child: const Text(
                                       'Tutte / Nessuna',
                                       style: TextStyle(
-                                        color: AppTheme.primaryPurple,
+                                        color: AppColors.primary,
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -756,14 +786,14 @@ class _FlowModePageState extends State<FlowModePage>
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: isEnabled
-                                              ? AppTheme.primaryPurple
-                                              : AppTheme.cardBorder,
+                                              ? AppColors.primary
+                                              : AppColors.surfaceBorder,
                                           width: isEnabled ? 2.5 : 1.0,
                                         ),
                                         boxShadow: isEnabled
                                             ? [
                                                 BoxShadow(
-                                                  color: AppTheme.primaryPurple
+                                                  color: AppColors.primary
                                                       .withValues(alpha: 0.15),
                                                   blurRadius: 6,
                                                   spreadRadius: 1,
@@ -796,7 +826,7 @@ class _FlowModePageState extends State<FlowModePage>
                                                   2,
                                                 ),
                                                 decoration: const BoxDecoration(
-                                                  color: AppTheme.primaryPurple,
+                                                  color: AppColors.primary,
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: const Icon(
@@ -837,7 +867,7 @@ class _FlowModePageState extends State<FlowModePage>
                                           color:
                                               _playbackService
                                                   .isMetronomeEnabled
-                                              ? AppTheme.primaryPurple
+                                              ? AppColors.primary
                                                     .withValues(alpha: 0.1)
                                               : Colors.white,
                                           borderRadius: BorderRadius.circular(
@@ -847,8 +877,8 @@ class _FlowModePageState extends State<FlowModePage>
                                             color:
                                                 _playbackService
                                                     .isMetronomeEnabled
-                                                ? AppTheme.primaryPurple
-                                                : AppTheme.cardBorder,
+                                                ? AppColors.primary
+                                                : AppColors.surfaceBorder,
                                             width: 1.5,
                                           ),
                                         ),
@@ -864,8 +894,8 @@ class _FlowModePageState extends State<FlowModePage>
                                               color:
                                                   _playbackService
                                                       .isMetronomeEnabled
-                                                  ? AppTheme.primaryPurple
-                                                  : AppTheme.textSecondary,
+                                                  ? AppColors.primary
+                                                  : AppColors.textSecondary,
                                               size: 18,
                                             ),
                                             const SizedBox(width: 8),
@@ -875,8 +905,8 @@ class _FlowModePageState extends State<FlowModePage>
                                                 color:
                                                     _playbackService
                                                         .isMetronomeEnabled
-                                                    ? AppTheme.primaryPurple
-                                                    : AppTheme.textSecondary,
+                                                    ? AppColors.primary
+                                                    : AppColors.textSecondary,
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 14,
                                               ),
@@ -896,7 +926,7 @@ class _FlowModePageState extends State<FlowModePage>
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: AppTheme.cardBorder,
+                                        color: AppColors.surfaceBorder,
                                         width: 1.5,
                                       ),
                                     ),
@@ -905,7 +935,7 @@ class _FlowModePageState extends State<FlowModePage>
                                       dropdownColor: Colors.white,
                                       underline: const SizedBox(),
                                       style: const TextStyle(
-                                        color: AppTheme.textPrimary,
+                                        color: AppColors.textPrimary,
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -947,7 +977,7 @@ class _FlowModePageState extends State<FlowModePage>
                                     Navigator.pop(context);
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primaryPurple,
+                                    backgroundColor: AppColors.primary,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -989,12 +1019,12 @@ class _FlowModePageState extends State<FlowModePage>
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        color: AppTheme.textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w800,
-        letterSpacing: 1.5,
-      ),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
     );
   }
 
@@ -1006,28 +1036,31 @@ class _FlowModePageState extends State<FlowModePage>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
+        onTap: onPressed == null
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onPressed();
+              },
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
           width: size,
           height: size,
           decoration: BoxDecoration(
             color: onPressed != null
-                ? AppTheme.primaryPurple.withValues(alpha: 0.1)
+                ? AppColors.primary.withValues(alpha: 0.1)
                 : Colors.black.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: onPressed != null
-                  ? AppTheme.primaryPurple.withValues(alpha: 0.3)
-                  : AppTheme.cardBorder.withValues(alpha: 0.5),
+                  ? AppColors.primary.withValues(alpha: 0.3)
+                  : AppColors.surfaceBorder.withValues(alpha: 0.5),
             ),
           ),
           child: Icon(
             icon,
             size: size * 0.5,
-            color: onPressed != null
-                ? AppTheme.primaryPurple
-                : AppTheme.textMuted,
+            color: onPressed != null ? AppColors.primary : AppColors.textMuted,
           ),
         ),
       ),
@@ -1052,7 +1085,10 @@ class _FlowModePageState extends State<FlowModePage>
     bool isVertical = false,
     double scale = 1.0,
   }) {
-    final double buttonSize = (isCompact ? 28.0 : 38.0) * scale;
+    // Compact floor raised from 28 to 36 — the original shrank below common
+    // 44dp touch-target guidance on small landscape screens, a real problem
+    // for a control meant to be used hands-on-instrument.
+    final double buttonSize = (isCompact ? 36.0 : 38.0) * scale;
     final minusButton = _buildCounterButton(
       icon: Icons.remove_rounded,
       size: buttonSize,
@@ -1069,7 +1105,7 @@ class _FlowModePageState extends State<FlowModePage>
       style: TextStyle(
         fontSize: (isCompact ? 13.0 : 16.0) * scale,
         fontWeight: FontWeight.w900,
-        color: AppTheme.textPrimary,
+        color: AppColors.textPrimary,
       ),
     );
 
@@ -1116,8 +1152,8 @@ class _FlowModePageState extends State<FlowModePage>
         value: _bpm.toDouble().clamp(40, 240),
         min: 40,
         max: 240,
-        activeColor: AppTheme.primaryPurple,
-        inactiveColor: const Color(0xFFFFEAD6),
+        activeColor: AppColors.primary,
+        inactiveColor: AppColors.inactiveTrack,
         onChanged: _onBpmSlider,
       ),
     );
@@ -1143,7 +1179,7 @@ class _FlowModePageState extends State<FlowModePage>
         children: [
           Icon(
             Icons.speed_rounded,
-            color: AppTheme.textSecondary,
+            color: AppColors.textSecondary,
             size: 16 * scale,
           ),
           _buildSpeedSlider(
@@ -1156,7 +1192,7 @@ class _FlowModePageState extends State<FlowModePage>
             style: TextStyle(
               fontSize: 11 * scale,
               fontWeight: FontWeight.bold,
-              color: AppTheme.primaryPurple,
+              color: AppColors.primary,
             ),
           ),
         ],
@@ -1167,7 +1203,7 @@ class _FlowModePageState extends State<FlowModePage>
       children: [
         const Icon(
           Icons.speed_rounded,
-          color: AppTheme.textSecondary,
+          color: AppColors.textSecondary,
           size: 18,
         ),
         const SizedBox(width: 6),
@@ -1181,7 +1217,7 @@ class _FlowModePageState extends State<FlowModePage>
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.bold,
-              color: AppTheme.primaryPurple,
+              color: AppColors.primary,
             ),
           ),
         ),
@@ -1191,24 +1227,9 @@ class _FlowModePageState extends State<FlowModePage>
 
   // ── Empty State ─────────────────────────────────────────────────────────
   Widget _buildEmptyState() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(
-          Icons.music_note_rounded,
-          size: 64,
-          color: AppTheme.textMuted.withValues(alpha: 0.3),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Genera un ritmo per iniziare',
-          style: TextStyle(
-            color: AppTheme.textMuted.withValues(alpha: 0.6),
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+    return const EmptyState(
+      icon: Icons.music_note_rounded,
+      title: 'Genera un ritmo per iniziare',
     );
   }
 
@@ -1257,17 +1278,15 @@ class _FlowModePageState extends State<FlowModePage>
                   transformAlignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                     border: Border.all(
-                      color: isActive
-                          ? AppTheme.primaryPurple
-                          : AppTheme.cardBorder,
+                      color: isActive ? AppColors.primary : AppColors.surfaceBorder,
                       width: isActive ? 3.5 : 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
                         color: isActive
-                            ? AppTheme.primaryPurple.withValues(alpha: 0.4)
+                            ? AppColors.primary.withValues(alpha: 0.4)
                             : Colors.black.withValues(alpha: 0.04),
                         blurRadius: isActive ? 16 : 6,
                         spreadRadius: isActive ? 2 : 0,
@@ -1278,7 +1297,7 @@ class _FlowModePageState extends State<FlowModePage>
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                     child: Center(
                       child: Padding(
                         padding: EdgeInsets.all(imagePadding),
@@ -1297,51 +1316,48 @@ class _FlowModePageState extends State<FlowModePage>
 
   // ── Metronome Beat Pulsing Indicator ──────────────────────────────────────
   Widget _buildMetronomeIndicator() {
+    final textTheme = Theme.of(context).textTheme;
+
     if (!_playbackService.isPlaying) {
       return const SizedBox(height: 52);
     }
 
     final beatNum = _currentBeatNumber;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryPurple.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryPurple.withValues(alpha: 0.2)),
-      ),
+    return AnimatedBuilder(
+      animation: _beatPulseController,
+      builder: (context, child) {
+        final double t = _beatPulseController.value;
+        return Transform.scale(
+          scale: 1.0 + t * 0.05,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xs),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1 + t * 0.06),
+              borderRadius: BorderRadius.circular(AppRadius.xl - 4),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2 + t * 0.15)),
+            ),
+            child: child,
+          ),
+        );
+      },
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.graphic_eq_rounded,
-            color: AppTheme.primaryPurple,
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          const Text(
+          const Icon(Icons.graphic_eq_rounded, color: AppColors.primary, size: 20),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
             'MOVIMENTO: ',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.1,
-            ),
+            style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary, letterSpacing: 1.1),
           ),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 150),
-            transitionBuilder: (child, animation) {
-              return ScaleTransition(scale: animation, child: child);
-            },
+            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
             child: Text(
               '$beatNum',
               key: ValueKey<int>(beatNum),
-              style: const TextStyle(
-                color: AppTheme.primaryPurple,
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-              ),
+              style: textTheme.displaySmall?.copyWith(color: AppColors.primary, fontSize: 24),
             ),
           ),
         ],
@@ -1360,28 +1376,11 @@ class _FlowModePageState extends State<FlowModePage>
       backgroundColor: Colors.transparent,
       // ── Left Navigation Drawer ───────────────────────────────────────────
       drawer: const AppDrawer(activeLabel: 'Flow Mode'),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.textPrimary),
-            tooltip: 'Menu',
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        title: const Text(
-          'Beatter Flow Mode',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: AppTheme.textPrimary,
-          ),
-        ),
+      appBar: BeatterAppBar(
+        title: 'Beatter Flow Mode',
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune_rounded, color: AppTheme.textPrimary),
+            icon: const Icon(Icons.tune_rounded, color: AppColors.textPrimary),
             onPressed: _showSettingsBottomSheet,
             tooltip: 'Impostazioni',
           ),
@@ -1454,9 +1453,7 @@ class _FlowModePageState extends State<FlowModePage>
 
         final Widget autoButton = _buildControlButton(
           icon: Icons.autorenew_rounded,
-          color: _isAutoGenerateEnabled
-              ? AppTheme.primaryPurple
-              : AppTheme.textSecondary,
+          color: _isAutoGenerateEnabled ? AppColors.primary : AppColors.textSecondary,
           onTap: () {
             setState(() {
               _onAutoGenerateToggled(!_isAutoGenerateEnabled);
@@ -1469,7 +1466,7 @@ class _FlowModePageState extends State<FlowModePage>
 
         final Widget generateButton = _buildControlButton(
           icon: Icons.shuffle_rounded,
-          color: AppTheme.primaryPurple,
+          color: AppColors.primary,
           onTap: () => _generateNewRhythm(),
           label: 'Generate',
           isCompact: true,
@@ -1528,9 +1525,9 @@ class _FlowModePageState extends State<FlowModePage>
         border: Border(
           top: isLandscape
               ? BorderSide.none
-              : const BorderSide(color: AppTheme.cardBorder, width: 1.0),
+              : const BorderSide(color: AppColors.surfaceBorder, width: 1.0),
           left: isLandscape
-              ? const BorderSide(color: AppTheme.cardBorder, width: 1.0)
+              ? const BorderSide(color: AppColors.surfaceBorder, width: 1.0)
               : BorderSide.none,
         ),
       ),
@@ -1542,19 +1539,17 @@ class _FlowModePageState extends State<FlowModePage>
                 Row(
                   children: [
                     _buildSlotCountControl(),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(child: _buildSpeedControl()),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpacing.sm + 2),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildControlButton(
                       icon: Icons.autorenew_rounded,
-                      color: _isAutoGenerateEnabled
-                          ? AppTheme.primaryPurple
-                          : AppTheme.textSecondary,
+                      color: _isAutoGenerateEnabled ? AppColors.primary : AppColors.textSecondary,
                       onTap: () {
                         setState(() {
                           _onAutoGenerateToggled(!_isAutoGenerateEnabled);
@@ -1565,7 +1560,7 @@ class _FlowModePageState extends State<FlowModePage>
                     _buildPlayButton(isPlaying),
                     _buildControlButton(
                       icon: Icons.shuffle_rounded,
-                      color: AppTheme.primaryPurple,
+                      color: AppColors.primary,
                       onTap: () => _generateNewRhythm(),
                       label: 'Generate',
                     ),
@@ -1584,38 +1579,48 @@ class _FlowModePageState extends State<FlowModePage>
     final isDisabled = _generatedSlots.isEmpty;
     final double size = (isCompact ? 44.0 : 56.0) * scale;
 
-    return GestureDetector(
-      onTap: isDisabled ? null : _togglePlay,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: isDisabled
-                ? [AppTheme.cardBorder, AppTheme.cardBorder.withValues(alpha: 0.5)]
-                : isPlaying
-                ? [const Color(0xFFFFC266), AppTheme.primaryPurple]
-                : [AppTheme.primaryPurple, const Color(0xFFFF9E47)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: isDisabled
+            ? null
+            : () {
+                HapticFeedback.mediumImpact();
+                _togglePlay();
+              },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: isDisabled
+                  ? [AppColors.surfaceBorder, AppColors.surfaceBorder.withValues(alpha: 0.5)]
+                  : isPlaying
+                  ? [AppColors.tertiary, AppColors.primary]
+                  : [AppColors.primary, AppColors.primaryContainer],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: isDisabled
+                ? []
+                : [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
           ),
-          boxShadow: isDisabled
-              ? []
-              : [
-                  BoxShadow(
-                    color: AppTheme.primaryPurple.withValues(alpha: 0.4),
-                    blurRadius: 12,
-                    spreadRadius: 1,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-        ),
-        child: Icon(
-          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          color: isDisabled ? Colors.white54 : Colors.white,
-          size: (isCompact ? 24.0 : 32.0) * scale,
+          child: Icon(
+            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            color: isDisabled ? Colors.white54 : Colors.white,
+            size: (isCompact ? 24.0 : 32.0) * scale,
+          ),
         ),
       ),
     );
@@ -1629,33 +1634,47 @@ class _FlowModePageState extends State<FlowModePage>
     bool isCompact = false,
     double scale = 1.0,
   }) {
-    final double size = (isCompact ? 34.0 : 44.0) * scale;
+    // Compact floor raised from 34 to 40 for the same touch-target reason
+    // as the slot-count stepper above.
+    final double size = (isCompact ? 40.0 : 44.0) * scale;
+    final BorderRadius radius = BorderRadius.circular(isCompact ? AppRadius.sm + 2 : AppRadius.md);
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
-              border: Border.all(color: color.withValues(alpha: 0.2), width: 1.2),
-            ),
-            child: Icon(icon, color: color, size: (isCompact ? 17.0 : 22.0) * scale),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: radius,
+      child: InkWell(
+        borderRadius: radius,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.08),
+                  borderRadius: radius,
+                  border: Border.all(color: color.withValues(alpha: 0.2), width: 1.2),
+                ),
+                child: Icon(icon, color: color, size: (isCompact ? 18.0 : 22.0) * scale),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color.withValues(alpha: 0.8),
+                  fontSize: (isCompact ? 9.0 : 10.0) * scale,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color.withValues(alpha: 0.8),
-              fontSize: (isCompact ? 9.0 : 10.0) * scale,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
