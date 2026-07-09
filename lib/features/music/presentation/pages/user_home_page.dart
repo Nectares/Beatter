@@ -76,14 +76,19 @@ class UserHomePage extends StatelessWidget {
                   child: Row(
                     children: [
                       // ── Hamburger menu ─────────────────────────────────
-                      Builder(
-                        builder: (ctx) => IconButton(
-                          icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 26),
-                          tooltip: 'Menu',
-                          onPressed: () => Scaffold.of(ctx).openDrawer(),
+                      // Hidden on expanded/tablet widths, where BeatterScaffold
+                      // already shows the drawer as a permanent side rail —
+                      // no modal to toggle, so no button for it.
+                      if (context.screenTier != ScreenTier.expanded) ...[
+                        Builder(
+                          builder: (ctx) => IconButton(
+                            icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 26),
+                            tooltip: 'Menu',
+                            onPressed: () => Scaffold.of(ctx).openDrawer(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.xxs),
+                        const SizedBox(width: AppSpacing.xxs),
+                      ],
                       // User info
                       const CircleAvatar(
                         radius: 20,
