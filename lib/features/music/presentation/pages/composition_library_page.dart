@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/app_dialogs.dart';
+import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/empty_state.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/composition.dart';
 import '../../../../services/composition_repository.dart';
@@ -73,46 +76,29 @@ class _CompositionLibraryPageState extends State<CompositionLibraryPage> {
   }
 
   Future<void> _renameComposition(Composition composition) async {
-    final controller = TextEditingController(text: composition.title);
-    final newTitle = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rinomina composizione'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          onSubmitted: (value) => Navigator.pop(ctx, value),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annulla')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Rinomina'),
-          ),
-        ],
-      ),
+    final newTitle = await showPromptDialog(
+      context,
+      title: 'Rinomina composizione',
+      initialValue: composition.title,
+      confirmLabel: 'Rinomina',
     );
     if (newTitle != null && newTitle.trim().isNotEmpty) {
       await _repository.rename(composition.id, newTitle.trim());
     }
   }
 
-  Future<void> _confirmDelete(Composition composition) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminare la composizione?'),
-        content: Text('"${composition.title}" verrà eliminata definitivamente.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Elimina', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
+  Future<bool> _confirmDeleteDialog(Composition composition) {
+    return showConfirmDialog(
+      context,
+      title: 'Eliminare la composizione?',
+      message: '"${composition.title}" verrà eliminata definitivamente.',
+      confirmLabel: 'Elimina',
+      isDestructive: true,
     );
-    if (confirmed == true) {
+  }
+
+  Future<void> _confirmDelete(Composition composition) async {
+    if (await _confirmDeleteDialog(composition)) {
       await _repository.delete(composition.id);
     }
   }
@@ -132,34 +118,18 @@ class _CompositionLibraryPageState extends State<CompositionLibraryPage> {
       drawer: const AppDrawer(activeLabel: 'Composer Mode'),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openComposer(),
-        backgroundColor: AppTheme.primaryPurple,
+        backgroundColor: AppColors.primary,
         tooltip: 'Nuova composizione',
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.textPrimary),
-            tooltip: 'Menu',
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        title: const Text(
-          'Composer Mode',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppTheme.textPrimary),
-        ),
+      appBar: BeatterAppBar(
+        title: 'Composer Mode',
         actions: [
           PopupMenuButton<_SortOption>(
-            icon: const Icon(Icons.sort_rounded, color: AppTheme.textPrimary),
+            icon: const Icon(Icons.sort_rounded, color: AppColors.textPrimary),
             onSelected: (option) => setState(() => _sortOption = option),
             itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: _SortOption.recentlyModified,
-                child: Text('Modificate di recente'),
-              ),
+              PopupMenuItem(value: _SortOption.recentlyModified, child: Text('Modificate di recente')),
               PopupMenuItem(value: _SortOption.name, child: Text('Nome')),
               PopupMenuItem(value: _SortOption.dateCreated, child: Text('Data di creazione')),
             ],
@@ -169,60 +139,102 @@ class _CompositionLibraryPageState extends State<CompositionLibraryPage> {
       body: Container(
         decoration: AppTheme.backgroundGradient,
         child: SafeArea(
-          child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) => setState(() => _searchQuery = value),
-                        decoration: const InputDecoration(
-                          hintText: 'Cerca composizioni...',
-                          prefixIcon: Icon(Icons.search_rounded),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: compositions.isEmpty
-                          ? _buildEmptyState()
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
-                              itemCount: compositions.length,
-                              itemBuilder: (context, index) {
-                                final composition = compositions[index];
-                                return CompositionListTile(
-                                  title: composition.title,
-                                  subtitle: _subtitleFor(composition),
-                                  onTap: () => _openComposer(composition),
-                                  trailing: PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert_rounded, color: AppTheme.textMuted),
-                                    onSelected: (action) {
-                                      switch (action) {
-                                        case 'rename':
-                                          _renameComposition(composition);
-                                          break;
-                                        case 'duplicate':
-                                          _repository.duplicate(composition.id);
-                                          break;
-                                        case 'delete':
-                                          _confirmDelete(composition);
-                                          break;
-                                      }
-                                    },
-                                    itemBuilder: (context) => const [
-                                      PopupMenuItem(value: 'rename', child: Text('Rinomina')),
-                                      PopupMenuItem(value: 'duplicate', child: Text('Duplica')),
-                                      PopupMenuItem(value: 'delete', child: Text('Elimina')),
-                                    ],
-                                  ),
-                                );
-                              },
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.lg,
+                            AppSpacing.sm,
+                            AppSpacing.lg,
+                            AppSpacing.xxs,
+                          ),
+                          child: Container(
+                            decoration: AppTheme.glassCardDecoration(borderRadius: AppRadius.md),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) => setState(() => _searchQuery = value),
+                              decoration: const InputDecoration(
+                                hintText: 'Cerca composizioni...',
+                                prefixIcon: Icon(Icons.search_rounded),
+                                filled: false,
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                              ),
                             ),
+                          ),
+                        ),
+                        Expanded(
+                          child: compositions.isEmpty
+                              ? _buildEmptyState()
+                              : AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 220),
+                                  child: ListView.builder(
+                                    key: ValueKey(compositions.map((c) => c.id).join(',')),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      AppSpacing.lg,
+                                      AppSpacing.xs,
+                                      AppSpacing.lg,
+                                      88,
+                                    ),
+                                    itemCount: compositions.length,
+                                    itemBuilder: (context, index) {
+                                      final composition = compositions[index];
+                                      return Dismissible(
+                                        key: ValueKey(composition.id),
+                                        direction: DismissDirection.endToStart,
+                                        confirmDismiss: (_) => _confirmDeleteDialog(composition),
+                                        onDismissed: (_) => _repository.delete(composition.id),
+                                        background: Container(
+                                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                                          alignment: Alignment.centerRight,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error.withValues(alpha: 0.85),
+                                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                                          ),
+                                          child: const Icon(Icons.delete_rounded, color: Colors.white),
+                                        ),
+                                        child: CompositionListTile(
+                                          title: composition.title,
+                                          subtitle: _subtitleFor(composition),
+                                          onTap: () => _openComposer(composition),
+                                          trailing: PopupMenuButton<String>(
+                                            icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted),
+                                            onSelected: (action) {
+                                              switch (action) {
+                                                case 'rename':
+                                                  _renameComposition(composition);
+                                                  break;
+                                                case 'duplicate':
+                                                  _repository.duplicate(composition.id);
+                                                  break;
+                                                case 'delete':
+                                                  _confirmDelete(composition);
+                                                  break;
+                                              }
+                                            },
+                                            itemBuilder: (context) => const [
+                                              PopupMenuItem(value: 'rename', child: Text('Rinomina')),
+                                              PopupMenuItem(value: 'duplicate', child: Text('Duplica')),
+                                              PopupMenuItem(value: 'delete', child: Text('Elimina')),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+            ),
+          ),
         ),
       ),
     );
@@ -230,37 +242,12 @@ class _CompositionLibraryPageState extends State<CompositionLibraryPage> {
 
   Widget _buildEmptyState() {
     final bool searching = _searchQuery.trim().isNotEmpty;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              searching ? Icons.search_off_rounded : Icons.piano_off_outlined,
-              size: 56,
-              color: AppTheme.textMuted,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              searching ? 'Nessun risultato' : 'Nessuna composizione ancora',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              searching
-                  ? 'Prova con un altro titolo.'
-                  : 'Tocca + per iniziare a comporre la tua prima melodia.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.4),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: searching ? Icons.search_off_rounded : Icons.piano_off_outlined,
+      title: searching ? 'Nessun risultato' : 'Nessuna composizione ancora',
+      message: searching
+          ? 'Prova con un altro titolo.'
+          : 'Tocca + per iniziare a comporre la tua prima melodia.',
     );
   }
 }

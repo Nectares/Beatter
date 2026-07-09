@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/framed_staff_card.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/rhythm_element.dart';
 import '../../../../services/rhythm_playback_service.dart';
@@ -71,28 +73,24 @@ class _StaffPlaybackPanelState extends State<StaffPlaybackPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isPlaying = _playbackService.isPlaying;
-
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-            child: Text(
-              widget.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+          if (widget.title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.xxs,
               ),
+              child: Text(widget.title, style: Theme.of(context).textTheme.headlineSmall),
             ),
-          ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: AppTheme.glassCardDecoration(borderRadius: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            child: FramedStaffCard(
+              outerPadding: EdgeInsets.zero,
               child: MusicStaffView(
                 measures: widget.measures,
                 activeMeasureIndex: _playbackService.currentMeasureIndex,
@@ -101,27 +99,14 @@ class _StaffPlaybackPanelState extends State<StaffPlaybackPanel> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              PlaybackButton(
-                icon: isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                onTap: widget.measures.isEmpty ? null : _togglePlayback,
-                primary: true,
-              ),
-              const SizedBox(width: 16),
-              PlaybackButton(
-                icon: Icons.stop_rounded,
-                onTap: widget.measures.isEmpty
-                    ? null
-                    : _playbackService.stopLoop,
-              ),
-            ],
+          const SizedBox(height: AppSpacing.md),
+          PlaybackButtonRow(
+            isPlaying: _playbackService.isPlaying,
+            isEnabled: widget.measures.isNotEmpty,
+            onPlay: _togglePlayback,
+            onStop: _playbackService.stopLoop,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
@@ -146,15 +131,7 @@ class SheetMusicViewerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BeatterScaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          title,
-          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18),
-        ),
-        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
-      ),
+      appBar: BeatterAppBar(title: title, leading: const BackButton()),
       body: Container(
         decoration: AppTheme.backgroundGradient,
         child: SafeArea(

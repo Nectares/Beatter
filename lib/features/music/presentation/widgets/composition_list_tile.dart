@@ -67,7 +67,12 @@ class CompositionListTile extends StatelessWidget {
                         style: textTheme.titleLarge,
                       ),
                       const SizedBox(height: AppSpacing.xxs),
-                      Text(subtitle, style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                      ),
                     ],
                   ),
                 ),
