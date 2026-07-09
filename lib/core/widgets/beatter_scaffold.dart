@@ -12,6 +12,8 @@ class BeatterScaffold extends StatelessWidget {
   final Color backgroundColor;
   final SystemUiOverlayStyle? overlayStyle;
   final Widget? floatingActionButton;
+  final Widget? bottomNavigationBar;
+  final bool? resizeToAvoidBottomInset;
 
   const BeatterScaffold({
     super.key,
@@ -21,6 +23,8 @@ class BeatterScaffold extends StatelessWidget {
     this.backgroundColor = Colors.transparent,
     this.overlayStyle,
     this.floatingActionButton,
+    this.bottomNavigationBar,
+    this.resizeToAvoidBottomInset,
   });
 
   @override
@@ -33,6 +37,8 @@ class BeatterScaffold extends StatelessWidget {
         drawer: drawer,
         body: body,
         floatingActionButton: floatingActionButton,
+        bottomNavigationBar: bottomNavigationBar,
+        resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       ),
     );
   }

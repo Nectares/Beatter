@@ -14,7 +14,7 @@ class BeatterApp extends StatelessWidget {
     return MaterialApp(
       title: 'Beatter',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       home: const LoginPage(),
     );
   }
