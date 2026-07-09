@@ -156,11 +156,11 @@ class AppDrawer extends StatelessWidget {
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFFFFF8F1), Color(0xFFFFF0E0)],
+                colors: [AppColors.backgroundStart, AppColors.backgroundEnd],
               ),
               border: Border(
                 right: BorderSide(
-                  color: AppTheme.cardBorder.withValues(alpha: 0.6),
+                  color: AppColors.surfaceBorder.withValues(alpha: 0.6),
                   width: 1.5,
                 ),
               ),
@@ -170,33 +170,31 @@ class AppDrawer extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Header ──────────────────────────────────────────────
-                  _buildHeader(),
-                  const SizedBox(height: 8),
+                  _buildHeader(context),
+                  const SizedBox(height: AppSpacing.xs),
 
                   // ── Divider ─────────────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                     child: Divider(
                       height: 1,
-                      color: AppTheme.cardBorder.withValues(alpha: 0.8),
+                      color: AppColors.surfaceBorder.withValues(alpha: 0.8),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.sm),
 
                   // ── Section label ────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 4,
+                      horizontal: AppSpacing.xl,
+                      vertical: AppSpacing.xxs,
                     ),
                     child: Text(
                       'STRUMENTI',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.8,
-                        color: AppTheme.textMuted.withValues(alpha: 0.9),
-                      ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            letterSpacing: 1.8,
+                            color: AppColors.textMuted.withValues(alpha: 0.9),
+                          ),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -228,9 +226,16 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
       child: Row(
         children: [
           Container(
@@ -238,14 +243,14 @@ class AppDrawer extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppTheme.primaryPurple, Color(0xFFFFC266)],
+                colors: [AppColors.primary, AppColors.tertiary],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.primaryPurple.withValues(alpha: 0.35),
+                  color: AppColors.primary.withValues(alpha: 0.35),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -257,24 +262,22 @@ class AppDrawer extends StatelessWidget {
               size: 24,
             ),
           ),
-          const SizedBox(width: 14),
-          const Column(
+          const SizedBox(width: AppSpacing.sm + 2),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Beatter',
-                style: TextStyle(
-                  fontSize: 20,
+                style: textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
+                  fontSize: 20,
                   letterSpacing: 0.3,
                 ),
               ),
               Text(
                 'Rhythm Training',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
+                style: textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -287,32 +290,28 @@ class AppDrawer extends StatelessWidget {
 
   Widget _buildNavItem(BuildContext context, _DrawerItem item) {
     final bool isActive = item.label == activeLabel;
+    final textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
       child: Opacity(
         opacity: item.isComingSoon ? 0.6 : 1.0,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.md + 2),
           child: InkWell(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.md + 2),
             onTap: item.isComingSoon ? null : () => _navigate(context, item),
-            splashColor: AppTheme.primaryPurple.withValues(alpha: 0.1),
-            highlightColor: AppTheme.primaryPurple.withValues(alpha: 0.06),
+            splashColor: AppColors.primary.withValues(alpha: 0.1),
+            highlightColor: AppColors.primary.withValues(alpha: 0.06),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2, vertical: AppSpacing.sm),
               decoration: BoxDecoration(
-                color: isActive
-                    ? AppTheme.primaryPurple.withValues(alpha: 0.12)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
+                color: isActive ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.md + 2),
                 border: isActive
-                    ? Border.all(
-                        color: AppTheme.primaryPurple.withValues(alpha: 0.25),
-                        width: 1.2,
-                      )
+                    ? Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.2)
                     : null,
               ),
               child: Row(
@@ -323,19 +322,17 @@ class AppDrawer extends StatelessWidget {
                     height: 38,
                     decoration: BoxDecoration(
                       color: isActive
-                          ? AppTheme.primaryPurple.withValues(alpha: 0.15)
-                          : AppTheme.cardBorder.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(10),
+                          ? AppColors.primary.withValues(alpha: 0.15)
+                          : AppColors.surfaceBorder.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(AppRadius.sm + 2),
                     ),
                     child: Icon(
                       item.icon,
                       size: 20,
-                      color: isActive
-                          ? AppTheme.primaryPurple
-                          : AppTheme.textSecondary,
+                      color: isActive ? AppColors.primary : AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: AppSpacing.sm + 2),
                   // Labels
                   Expanded(
                     child: Column(
@@ -343,23 +340,18 @@ class AppDrawer extends StatelessWidget {
                       children: [
                         Text(
                           item.label,
-                          style: TextStyle(
+                          style: textTheme.bodyLarge?.copyWith(
                             fontSize: 14,
-                            fontWeight: isActive
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: isActive
-                                ? AppTheme.primaryPurple
-                                : AppTheme.textPrimary,
+                            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                            color: isActive ? AppColors.primary : AppColors.textPrimary,
                           ),
                         ),
                         Text(
                           item.subtitle,
-                          style: TextStyle(
-                            fontSize: 11,
+                          style: textTheme.bodySmall?.copyWith(
                             color: isActive
-                                ? AppTheme.primaryPurple.withValues(alpha: 0.7)
-                                : AppTheme.textMuted,
+                                ? AppColors.primary.withValues(alpha: 0.7)
+                                : AppColors.textMuted,
                           ),
                         ),
                       ],
@@ -368,35 +360,19 @@ class AppDrawer extends StatelessWidget {
                   // Active indicator dot or Soon badge
                   if (item.isComingSoon)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.cardBorder.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: AppTheme.textMuted.withValues(alpha: 0.2),
-                        ),
+                        color: AppColors.surfaceBorder.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+                        border: Border.all(color: AppColors.textMuted.withValues(alpha: 0.2)),
                       ),
-                      child: const Text(
-                        'Soon',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textSecondary,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
+                      child: Text('Soon', style: textTheme.labelSmall?.copyWith(fontSize: 9)),
                     )
                   else if (isActive)
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryPurple,
-                        shape: BoxShape.circle,
-                      ),
+                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                     ),
                 ],
               ),
@@ -408,18 +384,20 @@ class AppDrawer extends StatelessWidget {
   }
 
   Widget _buildLogoutButton(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppRadius.md + 2),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.md + 2),
         onTap: () => _logout(context),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2, vertical: AppSpacing.sm),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.red.withValues(alpha: 0.15), width: 1.2),
+            color: AppColors.error.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(AppRadius.md + 2),
+            border: Border.all(color: AppColors.error.withValues(alpha: 0.15), width: 1.2),
           ),
           child: Row(
             children: [
@@ -427,22 +405,18 @@ class AppDrawer extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.sm + 2),
                 ),
-                child: const Icon(
-                  Icons.logout_rounded,
-                  size: 20,
-                  color: Colors.redAccent,
-                ),
+                child: const Icon(Icons.logout_rounded, size: 20, color: AppColors.error),
               ),
-              const SizedBox(width: 14),
-              const Text(
+              const SizedBox(width: AppSpacing.sm + 2),
+              Text(
                 'Logout',
-                style: TextStyle(
+                style: textTheme.bodyLarge?.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.redAccent,
+                  color: AppColors.error,
                 ),
               ),
             ],
