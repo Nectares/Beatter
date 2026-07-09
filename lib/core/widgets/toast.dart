@@ -17,21 +17,17 @@ class Toast {
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: style.color,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          margin: const EdgeInsets.all(AppSpacing.md),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md + 2)),
           duration: const Duration(seconds: 3),
           content: Row(
             children: [
               Icon(style.icon, color: Colors.white, size: 20),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   message,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                  style: AppTypography.textTheme.labelMedium?.copyWith(color: Colors.white),
                 ),
               ),
             ],
@@ -43,13 +39,13 @@ class Toast {
   static _ToastStyle _styleFor(ToastType type) {
     switch (type) {
       case ToastType.success:
-        return const _ToastStyle(Color(0xFF22C55E), Icons.check_circle_rounded);
+        return const _ToastStyle(AppColors.success, Icons.check_circle_rounded);
       case ToastType.warning:
-        return const _ToastStyle(AppTheme.primaryPurple, Icons.access_time_rounded);
+        return const _ToastStyle(AppColors.warning, Icons.access_time_rounded);
       case ToastType.error:
-        return const _ToastStyle(Color(0xFFEF4444), Icons.error_rounded);
+        return const _ToastStyle(AppColors.error, Icons.error_rounded);
       case ToastType.info:
-        return const _ToastStyle(AppTheme.textSecondary, Icons.info_rounded);
+        return const _ToastStyle(AppColors.info, Icons.info_rounded);
     }
   }
 }

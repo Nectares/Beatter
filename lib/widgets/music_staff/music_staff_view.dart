@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/empty_state.dart';
 import '../../theme/app_theme.dart';
 import '../../models/rhythm_element.dart';
 import 'music_staff_painter.dart';
@@ -101,19 +102,8 @@ class _MusicStaffViewState extends State<MusicStaffView> {
   Widget _buildEmptyState() {
     return Container(
       height: 160,
-      alignment: Alignment.center,
       decoration: AppTheme.glassCardDecoration(borderRadius: 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.piano_off_outlined, color: AppTheme.textMuted, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            'Nessuna nota da mostrare',
-            style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
-          ),
-        ],
-      ),
+      child: const EmptyState(icon: Icons.piano_off_outlined, title: 'Nessuna nota da mostrare', dense: true),
     );
   }
 }

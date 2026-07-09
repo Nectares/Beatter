@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../core/widgets/empty_state.dart';
 import '../../models/rhythm_element.dart';
 import 'music_staff_painter.dart';
 import 'staff_geometry.dart' as geometry;
@@ -191,15 +191,11 @@ class _ComposerStaffViewState extends State<ComposerStaffView> {
                     ),
                   ),
                   if (widget.measures.isEmpty)
-                    IgnorePointer(
-                      child: Center(
-                        child: Text(
-                          'Tocca per iniziare a comporre',
-                          style: TextStyle(
-                            color: AppTheme.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
+                    const IgnorePointer(
+                      child: EmptyState(
+                        icon: Icons.touch_app_outlined,
+                        title: 'Tocca per iniziare a comporre',
+                        dense: true,
                       ),
                     ),
                 ],

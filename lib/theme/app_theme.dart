@@ -9,39 +9,11 @@ export 'app_spacing.dart';
 export 'app_shadows.dart';
 export 'app_typography.dart';
 
-/// Central theme assembly. Prefer [AppColors]/[AppSpacing]/[AppRadius]/
-/// [AppShadows]/[AppTypography] directly in new code — the members below
-/// that mirror the old flat `AppTheme.xxx` constants are kept only so
-/// existing call sites keep compiling/rendering identically while each
-/// screen migrates to the new tokens one at a time.
+/// Central theme assembly. Use [AppColors]/[AppSpacing]/[AppRadius]/
+/// [AppShadows]/[AppTypography] directly for tokens — this class only
+/// assembles the final [ThemeData] plus a couple of shared decoration
+/// helpers ([glassCardDecoration], [backgroundGradient]).
 class AppTheme {
-  // --- Deprecated flat aliases (kept at their ORIGINAL values on purpose;
-  // do not repoint these at the new AppColors roles — that would repaint
-  // every remaining call site uncontrolled instead of migrating them
-  // deliberately screen by screen). ---
-  @Deprecated('Use AppColors.backgroundStart')
-  static const Color backgroundStart = AppColors.backgroundStart;
-  @Deprecated('Use AppColors.backgroundEnd')
-  static const Color backgroundEnd = AppColors.backgroundEnd;
-  @Deprecated('Use AppColors.primary')
-  static const Color primaryPurple = Color(0xFFFF7A00);
-  @Deprecated('This was always identical to primaryPurple. Migrate each call '
-      'site explicitly to AppColors.primary or AppColors.secondary per its '
-      'actual semantic intent — do not blind-replace.')
-  static const Color secondaryCyan = Color(0xFFFF7A00);
-  @Deprecated('Use AppColors.tertiary')
-  static const Color accentPink = Color(0xFFFFC266);
-  @Deprecated('Use AppColors.surface')
-  static const Color cardBackground = AppColors.surface;
-  @Deprecated('Use AppColors.surfaceBorder')
-  static const Color cardBorder = AppColors.surfaceBorder;
-  @Deprecated('Use AppColors.textPrimary')
-  static const Color textPrimary = AppColors.textPrimary;
-  @Deprecated('Use AppColors.textSecondary')
-  static const Color textSecondary = AppColors.textSecondary;
-  @Deprecated('Use AppColors.textMuted')
-  static const Color textMuted = AppColors.textMuted;
-
   // Background Gradient Decoration
   static BoxDecoration get backgroundGradient => const BoxDecoration(
         gradient: LinearGradient(

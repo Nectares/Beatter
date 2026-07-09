@@ -32,12 +32,12 @@ class MusicStaffPainter extends CustomPainter {
     final double midY = size.height / 2;
 
     final linePaint = Paint()
-      ..color = AppTheme.textMuted.withValues(alpha: 0.5)
+      ..color = AppColors.textMuted.withValues(alpha: 0.5)
       ..strokeWidth = 1.2
       ..style = PaintingStyle.stroke;
 
     final barPaint = Paint()
-      ..color = AppTheme.textSecondary
+      ..color = AppColors.textSecondary
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
@@ -90,7 +90,7 @@ class MusicStaffPainter extends CustomPainter {
 
   void _drawTrebleClef(Canvas canvas, double x, double y, double s) {
     final clefPaint = Paint()
-      ..color = AppTheme.textPrimary
+      ..color = AppColors.textPrimary
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -128,7 +128,7 @@ class MusicStaffPainter extends CustomPainter {
     }
 
     final textStyle = const TextStyle(
-      color: AppTheme.textPrimary,
+      color: AppColors.textPrimary,
       fontSize: 22,
       fontWeight: FontWeight.w900,
       fontFamily: 'serif',
@@ -158,22 +158,22 @@ class MusicStaffPainter extends CustomPainter {
     int? activeTripletIndex,
   }) {
     final notePaint = Paint()
-      ..color = isActive ? AppTheme.secondaryCyan : AppTheme.textPrimary
+      ..color = isActive ? AppColors.primary : AppColors.textPrimary
       ..style = PaintingStyle.fill;
 
     final stemPaint = Paint()
-      ..color = isActive ? AppTheme.secondaryCyan : AppTheme.textPrimary
+      ..color = isActive ? AppColors.primary : AppColors.textPrimary
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     final restPaint = Paint()
-      ..color = isActive ? AppTheme.accentPink : AppTheme.textSecondary
+      ..color = isActive ? AppColors.tertiary : AppColors.textSecondary
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
     if (isActive) {
       final glowPaint = Paint()
-        ..color = (element.isRest ? AppTheme.accentPink : AppTheme.secondaryCyan)
+        ..color = (element.isRest ? AppColors.tertiary : AppColors.primary)
             .withValues(alpha: 0.35)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       canvas.drawCircle(Offset(x, midY), 22, glowPaint);
@@ -257,7 +257,7 @@ class MusicStaffPainter extends CustomPainter {
     if (count == 0) return;
 
     final ledgerPaint = Paint()
-      ..color = AppTheme.textMuted.withValues(alpha: 0.7)
+      ..color = AppColors.textMuted.withValues(alpha: 0.7)
       ..strokeWidth = 1.2;
 
     final above = geometry.isLedgerAbove(noteName);
@@ -392,13 +392,13 @@ class MusicStaffPainter extends CustomPainter {
       final bool isThisNoteActive = isActive && activeTripletIndex == i;
 
       final notePaint = Paint()
-        ..color = isThisNoteActive ? AppTheme.secondaryCyan : AppTheme.textPrimary
+        ..color = isThisNoteActive ? AppColors.primary : AppColors.textPrimary
         ..style = PaintingStyle.fill;
 
       final stemPaint = Paint()
         ..color = isThisNoteActive
-            ? AppTheme.secondaryCyan
-            : (isActive ? AppTheme.secondaryCyan.withValues(alpha: 0.5) : AppTheme.textPrimary)
+            ? AppColors.primary
+            : (isActive ? AppColors.primary.withValues(alpha: 0.5) : AppColors.textPrimary)
         ..strokeWidth = 1.3
         ..style = PaintingStyle.stroke;
 
@@ -412,7 +412,7 @@ class MusicStaffPainter extends CustomPainter {
     }
 
     final beamPaint = Paint()
-      ..color = isActive ? AppTheme.secondaryCyan : AppTheme.textPrimary
+      ..color = isActive ? AppColors.primary : AppColors.textPrimary
       ..strokeWidth = 3.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.square;
@@ -424,7 +424,7 @@ class MusicStaffPainter extends CustomPainter {
     );
 
     final bracketPaint = Paint()
-      ..color = isActive ? AppTheme.secondaryCyan : AppTheme.textSecondary
+      ..color = isActive ? AppColors.primary : AppColors.textSecondary
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
@@ -435,7 +435,7 @@ class MusicStaffPainter extends CustomPainter {
     canvas.drawLine(Offset(x2 + 8, bracketY), Offset(x2 + 8, bracketY + 4), bracketPaint);
 
     final textStyle = TextStyle(
-      color: isActive ? AppTheme.secondaryCyan : AppTheme.textSecondary,
+      color: isActive ? AppColors.primary : AppColors.textSecondary,
       fontSize: 10,
       fontWeight: FontWeight.bold,
     );
@@ -445,8 +445,13 @@ class MusicStaffPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
 
+    // Matches the actual staff-card surface behind the canvas — this box
+    // exists to blot out the beam/bracket lines passing behind the "3", not
+    // to stand out as its own chip, so it must blend with the real
+    // background rather than the off-palette dark navy it used to be
+    // (which also left the text nearly illegible against it).
     final bgPaint = Paint()
-      ..color = const Color(0xFF1E293B)
+      ..color = AppColors.surface
       ..style = PaintingStyle.fill;
 
     canvas.drawRect(
