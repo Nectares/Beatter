@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/empty_state.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../../services/pattern_repository.dart';
 import 'rhythm_creator_page.dart';
@@ -19,28 +20,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
       'value': '24,582',
       'change': '+12% questo mese',
       'icon': Icons.people_alt_rounded,
-      'color': AppTheme.primaryPurple
+      'color': AppColors.primary,
     },
     {
       'title': 'Brani Caricati',
       'value': '142,809',
       'change': '+3,240 questa settimana',
       'icon': Icons.music_note_rounded,
-      'color': AppTheme.secondaryCyan
+      'color': AppColors.secondary,
     },
     {
       'title': 'Stream Attivi',
       'value': '3,842',
       'change': 'In tempo reale',
       'icon': Icons.sensors_rounded,
-      'color': AppTheme.accentPink
+      'color': AppColors.tertiary,
     },
     {
       'title': 'Guadagni Stimati',
       'value': '€12,450',
       'change': '+8.4% vs mese scorso',
       'icon': Icons.monetization_on_rounded,
-      'color': Colors.amber
+      'color': AppColors.warning,
     },
   ];
 
@@ -62,6 +63,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isMobile = size.width < 600;
+    final textTheme = Theme.of(context).textTheme;
+    final patterns = PatternRepository().patterns;
 
     return BeatterScaffold(
       body: Container(
@@ -73,46 +76,36 @@ class _AdminDashboardState extends State<AdminDashboard> {
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(AppSpacing.xs),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryPurple.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppTheme.primaryPurple.withValues(alpha: 0.5)),
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
                           ),
-                          child: const Icon(Icons.admin_panel_settings_rounded, color: AppTheme.primaryPurple),
+                          child: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.primary),
                         ),
-                        const SizedBox(width: 12),
-                        const Column(
+                        const SizedBox(width: AppSpacing.sm),
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Pannello Amministrazione',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
-                              ),
+                              style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                             ),
-                            Text(
-                              'Beatter Admin',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
+                            Text('Beatter Admin', style: textTheme.headlineMedium),
                           ],
                         ),
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                      icon: const Icon(Icons.logout_rounded, color: AppColors.error),
                       tooltip: 'Esci',
                       onPressed: _logout,
                     ),
@@ -124,35 +117,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Alert Banner
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppTheme.primaryPurple, AppTheme.accentPink],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(colors: [AppColors.primary, AppColors.tertiary]),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.stars_rounded, color: Colors.white, size: 28),
-                            SizedBox(width: 12),
+                            const Icon(Icons.stars_rounded, color: Colors.white, size: 28),
+                            const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     'Tutti i sistemi sono operativi',
-                                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                                    style: textTheme.titleMedium?.copyWith(color: Colors.white),
                                   ),
                                   Text(
                                     'Nessuna anomalia rilevata nelle ultime 24 ore.',
-                                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                                    style: textTheme.bodySmall?.copyWith(color: Colors.white70),
                                   ),
                                 ],
                               ),
@@ -160,19 +151,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpacing.xl),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Composizioni e Ritmiche',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
+                          Text('Composizioni e Ritmiche', style: textTheme.titleLarge),
                           ElevatedButton.icon(
                             onPressed: () async {
                               final updated = await Navigator.push(
@@ -184,64 +168,65 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryPurple,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
                             ),
                             icon: const Icon(Icons.add_rounded, size: 18),
                             label: const Text('NUOVA RITMICA', style: TextStyle(fontSize: 13)),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpacing.sm),
 
-                      Container(
+                      SizedBox(
                         height: 70,
-                        margin: const EdgeInsets.only(bottom: 24),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: PatternRepository().patterns.length,
-                          itemBuilder: (context, index) {
-                            final pat = PatternRepository().patterns[index];
-                            final activeStepCount = pat.beats.where((b) => b).length;
-                            return Container(
-                              margin: const EdgeInsets.only(right: 12),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: AppTheme.glassCardDecoration(borderRadius: 12),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.grid_on_rounded, color: AppTheme.secondaryCyan, size: 20),
-                                  const SizedBox(width: 8),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        pat.name,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textPrimary),
-                                      ),
-                                      Text(
-                                        '${pat.bpm} BPM | $activeStepCount step attivi',
-                                        style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                        child: patterns.isEmpty
+                            ? const Align(
+                                alignment: Alignment.centerLeft,
+                                child: EmptyState(
+                                  dense: true,
+                                  icon: Icons.grid_on_rounded,
+                                  title: 'Nessun pattern ancora creato',
+                                ),
+                              )
+                            : ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                physics: const BouncingScrollPhysics(),
+                                itemCount: patterns.length,
+                                itemBuilder: (context, index) {
+                                  final pat = patterns[index];
+                                  final activeStepCount = pat.beats.where((b) => b).length;
+                                  return Container(
+                                    margin: const EdgeInsets.only(right: AppSpacing.sm),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.md,
+                                      vertical: AppSpacing.sm,
+                                    ),
+                                    decoration: AppTheme.glassCardDecoration(borderRadius: AppRadius.md),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.grid_on_rounded, color: AppColors.secondary, size: 20),
+                                        const SizedBox(width: AppSpacing.xs),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(pat.name, style: textTheme.titleMedium),
+                                            Text(
+                                              '${pat.bpm} BPM | $activeStepCount step attivi',
+                                              style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
                       ),
+                      const SizedBox(height: AppSpacing.xl),
 
-                      const Text(
-                        'Statistiche Generali',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                      Text('Statistiche Generali', style: textTheme.titleLarge),
+                      const SizedBox(height: AppSpacing.sm),
 
                       // Grid of stats
                       GridView.builder(
@@ -249,15 +234,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: isMobile ? 2 : 4,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
+                          crossAxisSpacing: AppSpacing.sm,
+                          mainAxisSpacing: AppSpacing.sm,
                           childAspectRatio: 1.2,
                         ),
                         itemCount: stats.length,
                         itemBuilder: (context, index) {
                           final stat = stats[index];
                           return Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: AppTheme.glassCardDecoration(),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,104 +252,77 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Icon(stat['icon'] as IconData, color: stat['color'] as Color, size: 24),
-                                    const Icon(Icons.trending_up_rounded, color: Colors.greenAccent, size: 16),
+                                    const Icon(Icons.trending_up_rounded, color: AppColors.success, size: 16),
                                   ],
                                 ),
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      stat['value'] as String,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
+                                    Text(stat['value'] as String, style: textTheme.headlineSmall),
                                     const SizedBox(height: 2),
                                     Text(
                                       stat['title'] as String,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.textSecondary,
-                                      ),
+                                      style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                                     ),
                                   ],
                                 ),
                                 Text(
                                   stat['change'] as String,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppTheme.textMuted,
-                                  ),
+                                  style: textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
                                 ),
                               ],
                             ),
                           );
                         },
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: AppSpacing.xl + 4),
 
-                      const Text(
-                        'Registro Attività Recenti',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                      Text('Registro Attività Recenti', style: textTheme.titleLarge),
+                      const SizedBox(height: AppSpacing.sm),
 
                       // Activity list
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: logs.length,
-                        itemBuilder: (context, index) {
-                          final log = logs[index];
-                          return Container(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            padding: const EdgeInsets.all(16),
-                            decoration: AppTheme.glassCardDecoration(borderRadius: 12),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 6,
-                                  backgroundColor: index == 2 ? Colors.orangeAccent : AppTheme.primaryPurple,
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        log['event']!,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: AppTheme.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        log['detail']!,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.textSecondary,
-                                        ),
-                                      ),
-                                    ],
+                      if (logs.isEmpty)
+                        const EmptyState(icon: Icons.history_rounded, title: 'Nessuna attività recente')
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: logs.length,
+                          itemBuilder: (context, index) {
+                            final log = logs[index];
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: AppSpacing.xxs + 2),
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              decoration: AppTheme.glassCardDecoration(borderRadius: AppRadius.md),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 6,
+                                    backgroundColor: index == 2 ? AppColors.warning : AppColors.primary,
                                   ),
-                                ),
-                                Text(
-                                  log['time']!,
-                                  style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 40),
+                                  const SizedBox(width: AppSpacing.sm + 2),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(log['event']!, style: textTheme.titleMedium),
+                                        Text(
+                                          log['detail']!,
+                                          style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    log['time']!,
+                                    style: textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      const SizedBox(height: AppSpacing.xxxl),
                     ],
                   ),
                 ),
