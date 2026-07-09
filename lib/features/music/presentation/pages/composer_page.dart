@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/app_dialogs.dart';
+import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/framed_staff_card.dart';
+import '../../../../core/widgets/toast.dart';
 import '../../../../core/layout/two_pane_layout.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/rhythm_element.dart';
@@ -316,34 +320,15 @@ class _ComposerPageState extends State<ComposerPage> {
       _title = saved.title;
       _createdAt = saved.createdAt;
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Composizione salvata')));
+    Toast.show(ToastType.success, 'Composizione salvata', context);
   }
 
   Future<String?> _promptForTitle() {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Titolo composizione'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'La mia melodia'),
-          onSubmitted: (value) => Navigator.pop(ctx, value),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annulla'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Salva'),
-          ),
-        ],
-      ),
+    return showPromptDialog(
+      context,
+      title: 'Titolo composizione',
+      hintText: 'La mia melodia',
+      confirmLabel: 'Salva',
     );
   }
 
@@ -355,34 +340,29 @@ class _ComposerPageState extends State<ComposerPage> {
     final selectedPos = _measurePositionForFlatIndex(_selectedFlatIndex);
 
     return BeatterScaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          _title.isEmpty ? 'Nuova Composizione' : _title,
-          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18),
-        ),
-        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+      appBar: BeatterAppBar(
+        title: _title.isEmpty ? 'Nuova Composizione' : _title,
+        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.undo_rounded),
-            color: AppTheme.textPrimary,
+            color: AppColors.textPrimary,
             onPressed: _undoStack.isEmpty ? null : _undo,
             tooltip: 'Annulla',
           ),
           IconButton(
             icon: const Icon(Icons.redo_rounded),
-            color: AppTheme.textPrimary,
+            color: AppColors.textPrimary,
             onPressed: _redoStack.isEmpty ? null : _redo,
             tooltip: 'Ripeti',
           ),
           IconButton(
             icon: const Icon(Icons.save_rounded),
-            color: AppTheme.primaryPurple,
+            color: AppColors.primary,
             onPressed: _handleSave,
             tooltip: 'Salva',
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xxs),
         ],
       ),
       body: Container(
@@ -411,20 +391,20 @@ class _ComposerPageState extends State<ComposerPage> {
         children: [
           _buildStaffArea(measures, selectedPos, height: 160),
           _buildToolbarRow(),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.xs),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: _buildTimeSignatureSelector(),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),
             child: _buildBpmControl(),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: _buildPlaybackControls(),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
@@ -444,14 +424,14 @@ class _ComposerPageState extends State<ComposerPage> {
 
   Widget _buildLandscapeSecondary() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildTimeSignatureSelector(),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.lg),
           _buildBpmControl(),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
           _buildPlaybackControls(),
         ],
       ),
@@ -463,31 +443,26 @@ class _ComposerPageState extends State<ComposerPage> {
     (int, int)? selectedPos, {
     required double height,
   }) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: AppTheme.glassCardDecoration(borderRadius: 16),
-        child: ComposerStaffView(
-          measures: measures,
-          canvasHeight: height,
-          selectedMeasureIndex: selectedPos?.$1 ?? -1,
-          selectedElementIndex: selectedPos?.$2 ?? -1,
-          activeMeasureIndex: _playbackService.currentMeasureIndex,
-          activeElementIndex: _playbackService.currentElementIndex,
-          onSelectNote: _handleSelectNote,
-          onDeselect: _handleDeselect,
-          onInsertNote: _handleInsertNote,
-          onDragStart: _handleDragStart,
-          onDragUpdate: _handleDragUpdate,
-        ),
+    return FramedStaffCard(
+      child: ComposerStaffView(
+        measures: measures,
+        canvasHeight: height,
+        selectedMeasureIndex: selectedPos?.$1 ?? -1,
+        selectedElementIndex: selectedPos?.$2 ?? -1,
+        activeMeasureIndex: _playbackService.currentMeasureIndex,
+        activeElementIndex: _playbackService.currentElementIndex,
+        onSelectNote: _handleSelectNote,
+        onDeselect: _handleDeselect,
+        onInsertNote: _handleInsertNote,
+        onDragStart: _handleDragStart,
+        onDragUpdate: _handleDragUpdate,
       ),
     );
   }
 
   Widget _buildToolbarRow() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         children: [
           Expanded(
@@ -497,12 +472,9 @@ class _ComposerPageState extends State<ComposerPage> {
             ),
           ),
           if (_selectedFlatIndex != -1) ...[
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xxs),
             IconButton(
-              icon: const Icon(
-                Icons.delete_outline_rounded,
-                color: Colors.redAccent,
-              ),
+              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
               tooltip: 'Elimina nota',
               onPressed: _handleDeleteSelected,
             ),
@@ -514,21 +486,19 @@ class _ComposerPageState extends State<ComposerPage> {
 
   Widget _buildTimeSignatureSelector() {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
       children: _timeSignatures.map((sig) {
         final bool selected = sig == _timeSignature;
         return ChoiceChip(
           label: Text(sig),
           selected: selected,
           onSelected: (_) => _handleTimeSignatureChanged(sig),
-          selectedColor: AppTheme.primaryPurple.withValues(alpha: 0.15),
-          backgroundColor: AppTheme.cardBorder.withValues(alpha: 0.3),
-          side: BorderSide(
-            color: selected ? AppTheme.primaryPurple : Colors.transparent,
-          ),
+          selectedColor: AppColors.primary.withValues(alpha: 0.15),
+          backgroundColor: AppColors.surfaceBorder.withValues(alpha: 0.3),
+          side: BorderSide(color: selected ? AppColors.primary : Colors.transparent),
           labelStyle: TextStyle(
-            color: selected ? AppTheme.primaryPurple : AppTheme.textSecondary,
+            color: selected ? AppColors.primary : AppColors.textSecondary,
             fontWeight: selected ? FontWeight.bold : FontWeight.normal,
           ),
         );
@@ -539,20 +509,13 @@ class _ComposerPageState extends State<ComposerPage> {
   Widget _buildBpmControl() {
     return Row(
       children: [
-        const Icon(
-          Icons.speed_rounded,
-          color: AppTheme.textSecondary,
-          size: 18,
-        ),
-        const SizedBox(width: 8),
+        const Icon(Icons.speed_rounded, color: AppColors.textSecondary, size: 18),
+        const SizedBox(width: AppSpacing.xs),
         SizedBox(
           width: 66,
           child: Text(
             '$_bpm BPM',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
           ),
         ),
         Expanded(
@@ -572,22 +535,12 @@ class _ComposerPageState extends State<ComposerPage> {
   }
 
   Widget _buildPlaybackControls() {
-    final bool isPlaying = _playbackService.isPlaying;
     final bool hasNotes = _flatSequence.isNotEmpty;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        PlaybackButton(
-          icon: isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          onTap: hasNotes ? _togglePlayback : null,
-          primary: true,
-        ),
-        const SizedBox(width: 16),
-        PlaybackButton(
-          icon: Icons.stop_rounded,
-          onTap: hasNotes ? _playbackService.stopLoop : null,
-        ),
-      ],
+    return PlaybackButtonRow(
+      isPlaying: _playbackService.isPlaying,
+      isEnabled: hasNotes,
+      onPlay: _togglePlayback,
+      onStop: _playbackService.stopLoop,
     );
   }
 }

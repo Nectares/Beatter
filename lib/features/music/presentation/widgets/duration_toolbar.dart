@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/composition.dart';
 
@@ -17,39 +18,68 @@ class DurationToolbar extends StatelessWidget {
     required this.onSelected,
   });
 
+  static String _labelFor(NoteDuration duration) => switch (duration) {
+        NoteDuration.whole => 'Semibreve',
+        NoteDuration.half => 'Minima',
+        NoteDuration.quarter => 'Semiminima',
+        NoteDuration.eighth => 'Croma',
+        NoteDuration.sixteenth => 'Semicroma',
+      };
+
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: NoteDuration.values.map((duration) {
-        final bool isSelected = duration == selected;
-        return GestureDetector(
-          onTap: () => onSelected(duration),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppTheme.primaryPurple.withValues(alpha: 0.12)
-                  : AppTheme.cardBorder.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isSelected ? AppTheme.primaryPurple : Colors.transparent,
-                width: 1.5,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.surfaceBorder, width: 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: NoteDuration.values.map((duration) {
+          final bool isSelected = duration == selected;
+          return Semantics(
+            label: _labelFor(duration),
+            selected: isSelected,
+            button: true,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onSelected(duration);
+                },
+                child: Tooltip(
+                  message: _labelFor(duration),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primary.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: CustomPaint(
+                      painter: _DurationGlyphPainter(
+                        duration: duration,
+                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-            child: CustomPaint(
-              painter: _DurationGlyphPainter(
-                duration: duration,
-                color: isSelected
-                    ? AppTheme.primaryPurple
-                    : AppTheme.textSecondary,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }
