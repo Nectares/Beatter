@@ -5,6 +5,7 @@ import '../../../../services/auth_service.dart';
 import '../../../../core/layout/responsive_context.dart';
 import '../../../../core/layout/two_pane_layout.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
+import '../../../../core/widgets/decorative_glow_background.dart';
 import '../../../admin/presentation/pages/admin_dashboard.dart';
 import '../../../music/presentation/pages/flow_mode_page.dart';
 
@@ -50,6 +51,11 @@ class _LoginPageState extends State<LoginPage>
     _animationController.dispose();
     super.dispose();
   }
+
+  // Every role gets its own accent so the two login paths are visually
+  // distinct at a glance, not just distinguished by their label text.
+  Color _roleColor(UserRole role) =>
+      role == UserRole.admin ? AppColors.primary : AppColors.secondary;
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -106,111 +112,70 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return BeatterScaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: AppTheme.backgroundGradient,
-        child: Stack(
-          children: [
-            // Decorative background glowing circles
-            Positioned(
-              top: -size.height * 0.15,
-              right: -size.width * 0.2,
-              child: Container(
-                width: size.width * 0.8,
-                height: size.width * 0.8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primaryPurple.withValues(alpha: 0.15),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 80.0, sigmaY: 80.0),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -size.height * 0.2,
-              left: -size.width * 0.2,
-              child: Container(
-                width: size.width * 0.9,
-                height: size.width * 0.9,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.secondaryCyan.withValues(alpha: 0.12),
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 90.0, sigmaY: 90.0),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
-            ),
-
-            // Main content
-            SafeArea(
-              child: TwoPaneLayout(
-                portrait: (context) => Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildBranding(context),
-                          const SizedBox(height: 40),
-                          _buildFormCard(context),
-                          const SizedBox(height: 24),
-                          _buildCredentialsHelper(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                landscapePrimary: (context) => Center(
+        child: DecorativeGlowBackground(
+          child: SafeArea(
+            child: TwoPaneLayout(
+              portrait: (context) => Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                   child: FadeTransition(
                     opacity: _fadeAnimation,
-                    child: _buildBranding(context),
-                  ),
-                ),
-                landscapeSecondary: (context) => Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24.0,
-                      vertical: 16.0,
-                    ),
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildFormCard(context),
-                          const SizedBox(height: 20),
-                          _buildCredentialsHelper(),
-                        ],
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildBranding(context),
+                        const SizedBox(height: AppSpacing.xxxl),
+                        _buildFormCard(context),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildCredentialsHelper(context),
+                      ],
                     ),
                   ),
                 ),
-                primaryFlex: 0.4,
-                secondaryFlex: 0.6,
               ),
+              landscapePrimary: (context) => Center(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: _buildBranding(context),
+                ),
+              ),
+              landscapeSecondary: (context) => Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl,
+                    vertical: AppSpacing.md,
+                  ),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildFormCard(context),
+                        const SizedBox(height: AppSpacing.lg),
+                        _buildCredentialsHelper(context),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              primaryFlex: 0.4,
+              secondaryFlex: 0.6,
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildBranding(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final double logoSize = context.responsive(portrait: 60.0, landscape: 44.0);
-    final double titleSize = context.responsive(
-      portrait: 40.0,
-      landscape: 28.0,
-    );
+    final double titleSize = context.responsive(portrait: 40.0, landscape: 28.0);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -220,17 +185,17 @@ class _LoginPageState extends State<LoginPage>
           children: [
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primaryPurple.withValues(alpha: 0.2),
+                    color: AppColors.primary.withValues(alpha: 0.2),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 child: Image.asset(
                   'assets/logos/logo_beatter.png',
                   width: logoSize,
@@ -239,24 +204,21 @@ class _LoginPageState extends State<LoginPage>
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: AppSpacing.sm + 2),
             Text(
               'Beatter',
-              style: TextStyle(
+              style: textTheme.displaySmall?.copyWith(
                 fontSize: titleSize,
-                fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
-                color: AppTheme.textPrimary,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        const Text(
+        const SizedBox(height: AppSpacing.sm),
+        Text(
           'Sintonizza il tuo mondo',
-          style: TextStyle(
-            fontSize: 16,
-            color: AppTheme.textSecondary,
+          style: textTheme.bodyLarge?.copyWith(
+            color: AppColors.textSecondary,
             letterSpacing: 0.8,
           ),
         ),
@@ -265,15 +227,17 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildFormCard(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     final double padding = context.responsive(portrait: 28.0, landscape: 18.0);
+    final Color roleColor = _roleColor(_selectedRole);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(AppRadius.xl),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
         child: Container(
           padding: EdgeInsets.all(padding),
-          decoration: AppTheme.glassCardDecoration(borderRadius: 24),
+          decoration: AppTheme.glassCardDecoration(borderRadius: AppRadius.xl),
           child: Form(
             key: _formKey,
             child: Column(
@@ -282,9 +246,9 @@ class _LoginPageState extends State<LoginPage>
                 // Custom Tab Switcher (Segmented Selector)
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFCD5B5).withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.cardBorder),
+                    color: AppColors.surfaceBorder.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(AppRadius.md + 2),
+                    border: Border.all(color: AppColors.surfaceBorder),
                   ),
                   padding: const EdgeInsets.all(4),
                   child: Row(
@@ -306,35 +270,26 @@ class _LoginPageState extends State<LoginPage>
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: AppSpacing.xl),
 
                 // Fields Label
                 Text(
                   _selectedRole == UserRole.user
                       ? 'Accedi come Ascoltatore'
                       : 'Pannello di Controllo Admin',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
+                  style: textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpacing.lg),
 
                 // Email Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  style: textTheme.bodyLarge,
                   decoration: InputDecoration(
                     labelText: 'Indirizzo Email',
-                    prefixIcon: Icon(
-                      Icons.email_outlined,
-                      color: _selectedRole == UserRole.admin
-                          ? AppTheme.primaryPurple
-                          : AppTheme.secondaryCyan,
-                    ),
+                    prefixIcon: Icon(Icons.email_outlined, color: roleColor),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -346,28 +301,24 @@ class _LoginPageState extends State<LoginPage>
                     return null;
                   },
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: AppSpacing.sm + 6),
 
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
-                  style: const TextStyle(color: AppTheme.textPrimary),
+                  style: textTheme.bodyLarge,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: Icon(
-                      Icons.lock_outline_rounded,
-                      color: _selectedRole == UserRole.admin
-                          ? AppTheme.primaryPurple
-                          : AppTheme.secondaryCyan,
-                    ),
+                    prefixIcon: Icon(Icons.lock_outline_rounded, color: roleColor),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
-                        color: AppTheme.textSecondary,
+                        color: AppColors.textSecondary,
                       ),
+                      tooltip: _obscurePassword ? 'Mostra password' : 'Nascondi password',
                       onPressed: () {
                         setState(() {
                           _obscurePassword = !_obscurePassword;
@@ -388,37 +339,30 @@ class _LoginPageState extends State<LoginPage>
 
                 // Error Message Alert
                 if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     _errorMessage!,
-                    style: const TextStyle(
-                      color: Color(0xFFEF4444),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: AppColors.error,
+                      letterSpacing: 0,
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ],
 
-                const SizedBox(height: 28),
+                const SizedBox(height: AppSpacing.xl),
 
                 // Submit Button
                 ElevatedButton(
                   onPressed: _isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _selectedRole == UserRole.admin
-                        ? AppTheme.primaryPurple
-                        : AppTheme.secondaryCyan,
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: roleColor),
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : Text(
@@ -435,39 +379,34 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildCredentialsHelper() {
+  Widget _buildCredentialsHelper(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final Color roleColor = _roleColor(_selectedRole);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0E0),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.cardBorder),
+        color: AppColors.backgroundEnd,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.surfaceBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.info_outline, size: 16, color: AppTheme.secondaryCyan),
-              SizedBox(width: 8),
-              Text(
-                'Credenziali Demo:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
+              Icon(Icons.info_outline, size: 16, color: roleColor),
+              const SizedBox(width: AppSpacing.xs),
+              Text('Credenziali Demo:', style: textTheme.titleSmall),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.xxs + 2),
           Text(
             _selectedRole == UserRole.user
                 ? 'Utente: user@beatter.com / password123'
                 : 'Admin: admin@beatter.com / admin123',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.textSecondary,
+            style: textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
               fontFamily: 'monospace',
             ),
           ),
@@ -482,36 +421,35 @@ class _LoginPageState extends State<LoginPage>
     required IconData icon,
   }) {
     final isSelected = _selectedRole == role;
-    return GestureDetector(
-      onTap: () => _changeRole(role),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? (role == UserRole.admin
-                    ? AppTheme.primaryPurple
-                    : AppTheme.secondaryCyan)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? Colors.white : AppTheme.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
+    final Color color = _roleColor(role);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+        onTap: () => _changeRole(role),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.sm + 2),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: isSelected ? Colors.white : AppColors.textSecondary),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
