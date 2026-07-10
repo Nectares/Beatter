@@ -9,11 +9,11 @@ import '../../../../models/rhythm_element.dart';
 import '../../../../services/rhythm_playback_service.dart';
 import '../../../../core/layout/responsive_context.dart';
 import '../../../../core/layout/two_pane_layout.dart';
+import '../../../../core/navigation/shell_menu_button.dart';
+import '../../../../core/navigation/shell_visibility.dart';
 import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../core/widgets/empty_state.dart';
-
-import '../widgets/app_drawer.dart';
 
 class FlowModePage extends StatefulWidget {
   const FlowModePage({super.key});
@@ -60,16 +60,14 @@ class _FlowModePageState extends State<FlowModePage>
     vsync: this,
   );
 
+  // Whether the orientation lock below was last set for "visible" (true)
+  // or "hidden" (false) — avoids re-issuing the platform channel call on
+  // every dependency change once it's already in the right state.
+  bool? _lastAppliedVisibility;
+
   @override
   void initState() {
     super.initState();
-
-    // Enable rotation
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
 
     _playbackService = RhythmPlaybackService();
     _playbackService.updateSettings(bpm: _bpm);
@@ -79,6 +77,27 @@ class _FlowModePageState extends State<FlowModePage>
 
     // Load assets dynamically
     _loadAssets();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // This page now stays mounted inside the shell's IndexedStack even
+    // while the Home tab is showing (that's what fixes state loss on tab
+    // switch — see NavigationShell), so the landscape rotation this page
+    // wants can't be tied to initState/dispose anymore: those only fire
+    // once, when the shell itself is created/torn down, not on every tab
+    // switch. ShellVisibility reports the actual on-screen state instead.
+    final bool visible = ShellVisibility.of(context);
+    if (_lastAppliedVisibility == visible) return;
+    _lastAppliedVisibility = visible;
+    SystemChrome.setPreferredOrientations(visible
+        ? const [
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]
+        : const [DeviceOrientation.portraitUp]);
   }
 
   @override
@@ -1386,10 +1405,9 @@ class _FlowModePageState extends State<FlowModePage>
 
     return BeatterScaffold(
       backgroundColor: Colors.transparent,
-      // ── Left Navigation Drawer ───────────────────────────────────────────
-      drawer: const AppDrawer(activeLabel: 'Flow Mode'),
       appBar: BeatterAppBar(
         title: 'Beatter Flow Mode',
+        leading: ShellMenuButton.maybe(context),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune_rounded, color: AppColors.textPrimary),

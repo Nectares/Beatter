@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/app_theme.dart';
-import '../layout/responsive_context.dart';
 
 /// Drop-in replacement for [Scaffold] that keeps the system status bar and
 /// navigation bar in sync with Beatter's theme via [AnnotatedRegion], instead
 /// of every screen having to remember to wrap itself.
 ///
-/// On expanded-width screens (tablet/desktop, [ScreenTier.expanded]), a
-/// [drawer] is shown as a permanently-visible side panel instead of a
-/// swipe-out modal — premium apps don't hide primary navigation behind a
-/// hamburger once there's room to just show it. [AppBar]s built via
-/// [BeatterAppBar] (or any `AppBar` with no explicit `leading`) already
-/// auto-hide their hamburger button the moment `drawer` stops being set on
-/// the underlying [Scaffold], so this needs no per-screen opt-in — the one
-/// exception is a screen with its own hand-rolled hamburger button, which
-/// must guard on `context.screenTier != ScreenTier.expanded` itself (see
-/// UserHomePage's top bar).
+/// Root-level navigation (bottom bar on phones, collapsible rail on
+/// tablets) lives in [NavigationShell], one level up — pages reached
+/// through it should not pass [drawer] here. This still accepts one for
+/// screens that want a genuine modal drawer of their own, but no longer
+/// tries to reinterpret it as a permanent side panel on wide screens: that
+/// silently turned `Navigator.pop` (used to close the drawer) into a pop of
+/// the current page whenever the drawer wasn't actually a modal route,
+/// which was the root cause of a white-screen bug on tablet widths.
 class BeatterScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
   final Widget? drawer;
@@ -41,23 +38,13 @@ class BeatterScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool usePersistentRail = drawer != null && context.screenTier == ScreenTier.expanded;
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayStyle ?? AppTheme.systemOverlayStyle,
       child: Scaffold(
         backgroundColor: backgroundColor,
         appBar: appBar,
-        drawer: usePersistentRail ? null : drawer,
-        body: usePersistentRail
-            ? Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  drawer!,
-                  Expanded(child: body),
-                ],
-              )
-            : body,
+        drawer: drawer,
+        body: body,
         floatingActionButton: floatingActionButton,
         bottomNavigationBar: bottomNavigationBar,
         resizeToAvoidBottomInset: resizeToAvoidBottomInset,

@@ -7,7 +7,6 @@ import '../../../../theme/app_theme.dart';
 import '../../../../models/rhythm_pattern.dart';
 import '../../../../services/pattern_repository.dart';
 import '../../../../services/composition_repository.dart';
-import '../widgets/app_drawer.dart';
 import '../widgets/composition_list_tile.dart';
 import 'sheet_music_viewer_page.dart';
 
@@ -54,7 +53,6 @@ class _SheetModePageState extends State<SheetModePage> with SingleTickerProvider
     final patterns = PatternRepository().patterns;
 
     return BeatterScaffold(
-      drawer: const AppDrawer(activeLabel: 'Sheet Mode'),
       appBar: BeatterAppBar(
         title: 'Sheet Mode',
         bottom: TabBar(

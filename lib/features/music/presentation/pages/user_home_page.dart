@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/layout/responsive_context.dart';
+import '../../../../core/navigation/shell_menu_button.dart';
+import '../../../../core/navigation/shell_visibility.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../core/widgets/decorative_glow_background.dart';
 import '../../../../core/widgets/feature_card.dart';
 import '../../../../core/widgets/toast.dart';
 
-import 'flow_mode_page.dart';
-import '../widgets/app_drawer.dart';
+import '../navigation/main_navigation_shell.dart';
 
 class UserHomePage extends StatelessWidget {
   const UserHomePage({super.key});
@@ -57,8 +58,6 @@ class UserHomePage extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return BeatterScaffold(
-      // ── Left Navigation Drawer ─────────────────────────────────────────
-      drawer: const AppDrawer(activeLabel: 'Home'),
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -75,18 +74,11 @@ class UserHomePage extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      // ── Hamburger menu ─────────────────────────────────
-                      // Hidden on expanded/tablet widths, where BeatterScaffold
-                      // already shows the drawer as a permanent side rail —
-                      // no modal to toggle, so no button for it.
-                      if (context.screenTier != ScreenTier.expanded) ...[
-                        Builder(
-                          builder: (ctx) => IconButton(
-                            icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 26),
-                            tooltip: 'Menu',
-                            onPressed: () => Scaffold.of(ctx).openDrawer(),
-                          ),
-                        ),
+                      // Opens the phone drawer. Hidden on tablet/desktop
+                      // chrome, where the rail is always visible instead —
+                      // ShellMenuButton figures that out on its own.
+                      if (ShellMenuButton.maybe(context) case final menuButton?) ...[
+                        menuButton,
                         const SizedBox(width: AppSpacing.xxs),
                       ],
                       // User info
@@ -135,10 +127,13 @@ class UserHomePage extends StatelessWidget {
                               subtitle:
                                   'Allenamento ritmico in loop infinito. Esegui pattern temporali senza interruzioni e mantieni il groove.',
                               accentColor: AppColors.primary,
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const FlowModePage()),
-                              ),
+                              // Switches the shell's selected tab instead of
+                              // pushing a second, independent FlowModePage
+                              // route — that used to create a duplicate,
+                              // separately-stateful instance of the same
+                              // destination.
+                              onTap: () => NavigationShellController.maybeOf(context)
+                                  ?.selectTab(AppTab.flowMode.index),
                             ),
                             const SizedBox(height: AppSpacing.md),
 

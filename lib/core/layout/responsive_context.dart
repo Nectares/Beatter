@@ -28,4 +28,13 @@ extension ResponsiveContext on BuildContext {
   /// True on tablet-and-larger widths (medium or expanded tier) — the app
   /// should stop treating these like a stretched phone layout.
   bool get isTablet => screenTier != ScreenTier.compact;
+
+  /// Orientation-independent device class, based on the *shortest* side of
+  /// the screen. Unlike [screenTier]/[isTablet] (which reflect the current
+  /// window width and deliberately reclassify a rotated phone as "medium"
+  /// width), this stays stable across rotation — a phone is a phone in
+  /// both portrait and landscape. Used to pick navigation chrome: phones
+  /// keep bottom navigation in both orientations, tablets get the
+  /// collapsible navigation rail in both orientations.
+  bool get isTabletDevice => MediaQuery.sizeOf(this).shortestSide >= 600;
 }

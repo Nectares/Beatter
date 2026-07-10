@@ -6,7 +6,6 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../models/composition.dart';
 import '../../../../services/composition_repository.dart';
-import '../widgets/app_drawer.dart';
 import '../widgets/composition_list_tile.dart';
 import 'composer_page.dart';
 
@@ -115,7 +114,6 @@ class _CompositionLibraryPageState extends State<CompositionLibraryPage> {
     final compositions = _filteredSorted;
 
     return BeatterScaffold(
-      drawer: const AppDrawer(activeLabel: 'Composer Mode'),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openComposer(),
         backgroundColor: AppColors.primary,

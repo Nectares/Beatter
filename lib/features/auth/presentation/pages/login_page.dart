@@ -7,7 +7,7 @@ import '../../../../core/layout/two_pane_layout.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../core/widgets/decorative_glow_background.dart';
 import '../../../admin/presentation/pages/admin_dashboard.dart';
-import '../../../music/presentation/pages/flow_mode_page.dart';
+import '../../../music/presentation/navigation/main_navigation_shell.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -55,7 +55,7 @@ class _LoginPageState extends State<LoginPage>
   // Every role gets its own accent so the two login paths are visually
   // distinct at a glance, not just distinguished by their label text.
   Color _roleColor(UserRole role) =>
-      role == UserRole.admin ? AppColors.primary : AppColors.secondary;
+      role == UserRole.admin ? AppColors.secondary : AppColors.primary;
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -85,7 +85,7 @@ class _LoginPageState extends State<LoginPage>
           pageBuilder: (context, animation, secondaryAnimation) =>
               session.role == UserRole.admin
               ? const AdminDashboard()
-              : const FlowModePage(),
+              : const MainNavigationShell(initialTab: AppTab.flowMode),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -122,7 +122,9 @@ class _LoginPageState extends State<LoginPage>
             child: TwoPaneLayout(
               portrait: (context) => Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl,
+                  ),
                   child: FadeTransition(
                     opacity: _fadeAnimation,
                     child: Column(
@@ -175,7 +177,10 @@ class _LoginPageState extends State<LoginPage>
   Widget _buildBranding(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final double logoSize = context.responsive(portrait: 60.0, landscape: 44.0);
-    final double titleSize = context.responsive(portrait: 40.0, landscape: 28.0);
+    final double titleSize = context.responsive(
+      portrait: 40.0,
+      landscape: 28.0,
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -310,7 +315,10 @@ class _LoginPageState extends State<LoginPage>
                   style: textTheme.bodyLarge,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock_outline_rounded, color: roleColor),
+                    prefixIcon: Icon(
+                      Icons.lock_outline_rounded,
+                      color: roleColor,
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
@@ -318,7 +326,9 @@ class _LoginPageState extends State<LoginPage>
                             : Icons.visibility_outlined,
                         color: AppColors.textSecondary,
                       ),
-                      tooltip: _obscurePassword ? 'Mostra password' : 'Nascondi password',
+                      tooltip: _obscurePassword
+                          ? 'Mostra password'
+                          : 'Nascondi password',
                       onPressed: () {
                         setState(() {
                           _obscurePassword = !_obscurePassword;
@@ -362,7 +372,9 @@ class _LoginPageState extends State<LoginPage>
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
@@ -384,7 +396,10 @@ class _LoginPageState extends State<LoginPage>
     final Color roleColor = _roleColor(_selectedRole);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: AppColors.backgroundEnd,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -439,7 +454,11 @@ class _LoginPageState extends State<LoginPage>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: isSelected ? Colors.white : AppColors.textSecondary),
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
               const SizedBox(width: AppSpacing.xs),
               Text(
                 title,
