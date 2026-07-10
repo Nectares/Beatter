@@ -193,10 +193,22 @@ class _FlowModePageState extends State<FlowModePage>
         _isLoading = false;
       });
 
-      // Precache images in Flutter image cache
-      for (var path in _rhythmAssets) {
-        precacheImage(AssetImage(path), context);
-      }
+      // Precache images in Flutter image cache. Deferred to a post-frame
+      // callback: this resumes from an `await` above, and calling
+      // precacheImage's underlying MediaQuery lookup on `context` too soon
+      // after initState (before this element's first build has been
+      // registered with the framework) throws
+      // "dependOnInheritedWidgetOfExactType<MediaQuery>() ... called before
+      // initState() completed" — reliably reproducible when this page is
+      // reached via a pushReplacement (e.g. the drawer's Flow Mode entry)
+      // rather than as the app's very first route, where scheduling happens
+      // to land on the safe side of the race.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        for (var path in _rhythmAssets) {
+          precacheImage(AssetImage(path), context);
+        }
+      });
 
       _generateNewRhythm();
     }
