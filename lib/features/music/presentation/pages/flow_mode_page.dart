@@ -29,7 +29,6 @@ class _FlowModePageState extends State<FlowModePage>
 
   // ── Settings ─────────────────────────────────────────────────────────────
   int _bpm = 120;
-  String _selectedTimeSignature = '4/4';
   int _slotsCount = 4;
 
   // ── Assets & State ────────────────────────────────────────────────────────
@@ -274,12 +273,12 @@ class _FlowModePageState extends State<FlowModePage>
 
     if (fromTimer && _playbackService.isPlaying) {
       // Se generato dal timer e in play, aggiorna in modo fluido per non perdere il timing
-      _playbackService.updateSlotsSeamlessly(slots, _selectedTimeSignature);
+      _playbackService.updateSlotsSeamlessly(slots);
     } else {
       // Altrimenti fermati e ricomincia per un reset manuale pulito
       final wasPlaying = _playbackService.isPlaying;
       _playbackService.stop();
-      _playbackService.prepareSlotPlayback(slots, _selectedTimeSignature);
+      _playbackService.prepareSlotPlayback(slots);
       if (wasPlaying) {
         _playbackService.play();
       }
@@ -576,76 +575,6 @@ class _FlowModePageState extends State<FlowModePage>
                                     ),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 24),
-
-                              // ── Time Signature ───────────────────────────
-                              _buildSectionTitle('TIME SIGNATURE'),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: ['4/4', '3/4', '6/8'].map((sig) {
-                                  final isSelected =
-                                      _selectedTimeSignature == sig;
-                                  return Expanded(
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(
-                                          () => _selectedTimeSignature = sig,
-                                        );
-                                        setSheetState(
-                                          () => _selectedTimeSignature = sig,
-                                        );
-                                        _generateNewRhythm();
-                                      },
-                                      child: AnimatedContainer(
-                                        duration: const Duration(
-                                          milliseconds: 150,
-                                        ),
-                                        margin: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? AppColors.primary
-                                              : Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: isSelected
-                                                ? AppColors.primary
-                                                : AppColors.surfaceBorder,
-                                            width: 1.5,
-                                          ),
-                                          boxShadow: isSelected
-                                              ? [
-                                                  BoxShadow(
-                                                    color: AppColors.primary
-                                                        .withValues(alpha: 0.2),
-                                                    blurRadius: 8,
-                                                    offset: const Offset(0, 3),
-                                                  ),
-                                                ]
-                                              : null,
-                                        ),
-                                        child: Text(
-                                          sig,
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: isSelected
-                                                ? Colors.white
-                                                : AppColors.textSecondary,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
                               ),
                               const SizedBox(height: 24),
 

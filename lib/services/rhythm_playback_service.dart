@@ -203,17 +203,16 @@ class RhythmPlaybackService extends ChangeNotifier {
   }
 
   /// Costruisce la timeline esatta degli eventi in base alle tessere del Flow Mode.
-  void prepareSlotPlayback(List<RhythmSlot> slots, String timeSignature) {
+  /// Flow Mode usa sempre un tempo fisso di 4/4.
+  void prepareSlotPlayback(List<RhythmSlot> slots) {
     _timeline.clear();
-    
+
     for (int i = 0; i < slots.length; i++) {
       final slot = slots[i];
       final double slotBeatOffset = i.toDouble();
 
       // 1. Aggiungi i click del metronomo su ciascun movimento
-      final bool isAccent = (timeSignature == '4/4' && i % 4 == 0) ||
-                            (timeSignature == '3/4' && i % 3 == 0) ||
-                            (timeSignature == '6/8' && i % 6 == 0);
+      final bool isAccent = i % 4 == 0;
 
       _timeline.add(PlaybackEvent(
         beatOffset: slotBeatOffset,
@@ -248,8 +247,8 @@ class RhythmPlaybackService extends ChangeNotifier {
   }
 
   /// Aggiorna le tessere del Flow Mode in modo fluido senza interrompere il loop.
-  void updateSlotsSeamlessly(List<RhythmSlot> slots, String timeSignature) {
-    prepareSlotPlayback(slots, timeSignature);
+  void updateSlotsSeamlessly(List<RhythmSlot> slots) {
+    prepareSlotPlayback(slots);
     
     if (_isPlaying && !_isPaused) {
       final double msPerBeat = 60000.0 / _bpm;
