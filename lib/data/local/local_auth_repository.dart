@@ -5,14 +5,12 @@ import '../../core/utils/value_stream.dart';
 import '../../domain/entities/auth_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
-/// Offline/dev [AuthRepository] preserving the historical mock credentials
-/// (user@beatter.com / password123, admin@beatter.com / admin123) so the
-/// existing login page keeps working when Firebase isn't reachable.
+/// Offline/dev [AuthRepository]: accepts any plausible email/password so the
+/// app stays usable without Firebase. Real credential checks (and the admin
+/// role, which lives on the Firestore profile) only exist in Firebase mode.
 class LocalAuthRepository implements AuthRepository {
   final _controller = StreamController<AuthUser?>.broadcast();
   AuthUser? _current;
-
-  static const _adminEmail = 'admin@beatter.com';
 
   void _set(AuthUser? user) {
     _current = user;
@@ -55,10 +53,7 @@ class LocalAuthRepository implements AuthRepository {
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
     final normalized = email.trim().toLowerCase();
-    final validAdmin = normalized == _adminEmail && password == 'admin123';
-    final validUser = normalized == 'user@beatter.com' && password == 'password123';
-    final plausible = normalized.contains('@') && password.length >= 6;
-    if (!validAdmin && !validUser && !plausible) {
+    if (!normalized.contains('@') || password.length < 6) {
       throw const AuthFailure('invalid-credential', 'Credenziali non valide.');
     }
     final user = _fromEmail(normalized);

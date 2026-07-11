@@ -73,6 +73,13 @@ class FirestoreProfileRepository implements ProfileRepository {
       });
 
   @override
+  Future<bool> isUsernameTaken(String username) => guard(() async {
+        final handle = username.trim().toLowerCase();
+        final snap = await _db.doc(FirestorePaths.username(handle)).get();
+        return snap.exists;
+      });
+
+  @override
   Future<void> claimUsername({required String uid, required String username}) {
     final handle = username.trim().toLowerCase();
     if (handle.length < 3 || !RegExp(r'^[a-z0-9_]{3,24}$').hasMatch(handle)) {

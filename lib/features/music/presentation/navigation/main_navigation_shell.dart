@@ -67,18 +67,19 @@ class MainNavigationShell extends StatelessWidget {
       destinationIndex: 1,
     ),
     ShellNavItem(
-      label: 'Polyrhythm Lab',
-      subtitle: 'Poliritmie animate e sincronizzate',
-      icon: Icons.change_history_outlined,
-      selectedIcon: Icons.change_history_rounded,
-      //destinationIndex: 2, // DISABLED - Temporaneamente disabilitato per future implementazioni.
-    ),
-    ShellNavItem(
       label: 'Sheet Mode',
       subtitle: 'Esercizi di lettura ritmica',
       icon: Icons.menu_book_outlined,
       selectedIcon: Icons.menu_book_rounded,
       destinationIndex: 3,
+    ),
+    ShellNavItem(
+      label: 'Polyrhythm Lab',
+      subtitle: 'Poliritmie animate e sincronizzate',
+      icon: Icons.change_history_outlined,
+      selectedIcon: Icons.change_history_rounded,
+      destinationIndex:
+          2, // DISABLED - Temporaneamente disabilitato per future implementazioni.
     ),
     ShellNavItem(
       label: 'Composer Mode',

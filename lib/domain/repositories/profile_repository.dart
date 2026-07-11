@@ -19,4 +19,9 @@ abstract interface class ProfileRepository {
   /// Atomically reserves [username] (case-insensitive) and stores it on the
   /// profile. Throws [ConflictFailure] if taken.
   Future<void> claimUsername({required String uid, required String username});
+
+  /// Whether [username] (case-insensitive) is already reserved by another
+  /// user. A pre-flight check for registration forms — [claimUsername] stays
+  /// the authoritative, race-free gate.
+  Future<bool> isUsernameTaken(String username);
 }

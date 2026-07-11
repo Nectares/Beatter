@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../services/auth_service.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/layout/responsive_context.dart';
 import '../../../../core/navigation/shell_menu_button.dart';
@@ -73,34 +74,54 @@ class UserHomePage extends StatelessWidget {
                         menuButton,
                         const SizedBox(width: AppSpacing.xxs),
                       ],
-                      // User info
-                      const CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppColors.secondary,
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Benvenuto,',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            'Utente Standard',
-                            style: textTheme.titleMedium?.copyWith(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                      // User info: name and (when available, e.g. from
+                      // Google sign-in) profile photo of the signed-in user.
+                      Builder(
+                        builder: (context) {
+                          final user = AuthService.currentUser;
+                          final name =
+                              (user?.displayName?.trim().isNotEmpty ?? false)
+                              ? user!.displayName!.trim()
+                              : (user?.email?.split('@').first ?? 'Musicista');
+                          final photoUrl = user?.photoUrl;
+                          return Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 20,
+                                backgroundColor: AppColors.secondary,
+                                backgroundImage: photoUrl == null
+                                    ? null
+                                    : NetworkImage(photoUrl),
+                                child: photoUrl != null
+                                    ? null
+                                    : const Icon(
+                                        Icons.person,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Benvenuto,',
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  Text(
+                                    name,
+                                    style: textTheme.titleMedium?.copyWith(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -165,15 +186,15 @@ class UserHomePage extends StatelessWidget {
                               subtitle:
                                   'Poliritmie animate e sincronizzate: guarda e senti il ritmo, non contarlo, non pensarlo, vivilo.',
                               accentColor: AppColors.secondary,
-                              // onTap: () => NavigationShellController.maybeOf(
-                              //   context,
-                              // )?.selectTab(AppTab.polyrhythmLab.index),
-                              isAvailable: false,
-                              onTap: () => Toast.show(
-                                ToastType.warning,
-                                'Funzionalità in arrivo!',
+                              onTap: () => NavigationShellController.maybeOf(
                                 context,
-                              ),
+                              )?.selectTab(AppTab.polyrhythmLab.index),
+                              isAvailable: true,
+                              // onTap: () => Toast.show(
+                              //   ToastType.warning,
+                              //   'Funzionalità in arrivo!',
+                              //   context,
+                              // ),
                             ),
                             const SizedBox(height: AppSpacing.md),
 

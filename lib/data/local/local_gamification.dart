@@ -351,9 +351,6 @@ class LocalProfileRepository implements ProfileRepository {
       email: user.email,
       displayName: user.displayName ?? user.email?.split('@').first ?? 'Musicista',
       photoUrl: user.photoUrl,
-      role: user.email == 'admin@beatter.com'
-          ? UserProfileRole.admin
-          : UserProfileRole.user,
       createdAt: now,
       updatedAt: now,
     );
@@ -378,4 +375,7 @@ class LocalProfileRepository implements ProfileRepository {
       updatedAt: DateTime.now().toUtc(),
     ));
   }
+
+  @override
+  Future<bool> isUsernameTaken(String username) async => false; // single-user
 }

@@ -1,4 +1,5 @@
 import 'package:beatter/core/di/service_locator.dart';
+import 'package:beatter/core/errors/app_failure.dart';
 import 'package:beatter/domain/entities/workout_session.dart';
 import 'package:beatter/domain/repositories/auth_repository.dart';
 import 'package:beatter/domain/repositories/gamification_repositories.dart';
@@ -30,29 +31,51 @@ void main() {
     expect(ServiceLocator.mode, BackendMode.local);
   });
 
-  test('AuthService.login preserves the historical mock contract', () async {
+  test('AuthService.login: local fallback signs in plausible credentials as user',
+      () async {
     final bad = await AuthService.login(
-      email: 'user@beatter.com',
-      password: 'nope',
+      email: 'someone@example.com',
+      password: 'nope', // too short
       expectedRole: UserRole.user,
     );
     expect(bad, isNull);
 
     final user = await AuthService.login(
-      email: 'user@beatter.com',
+      email: 'someone@example.com',
       password: 'password123',
       expectedRole: UserRole.user,
     );
     expect(user, isNotNull);
     expect(user!.role, UserRole.user);
 
+    // The admin role only exists on Firebase profiles now — no local
+    // credential pair grants it.
     final admin = await AuthService.login(
       email: 'admin@beatter.com',
-      password: 'admin123',
+      password: 'Admin123!',
       expectedRole: UserRole.admin,
     );
-    expect(admin, isNotNull);
-    expect(admin!.role, UserRole.admin);
+    expect(admin, isNull);
+  });
+
+  test('AuthService.register validates the nickname and creates the account',
+      () async {
+    await expectLater(
+      AuthService.register(
+        email: 'nuovo@example.com',
+        password: 'Password1',
+        nickname: 'x', // too short
+      ),
+      throwsA(isA<DataFormatFailure>()),
+    );
+
+    final session = await AuthService.register(
+      email: 'nuovo@example.com',
+      password: 'Password1',
+      nickname: 'drummer_01',
+    );
+    expect(session.role, UserRole.user);
+    expect(session.email, 'nuovo@example.com');
   });
 
   test('recording a workout updates points, stats and achievements', () async {

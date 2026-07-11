@@ -64,20 +64,42 @@ class AuthService {
     }
   }
 
-  /// First-time email/password registration.
-  static Future<UserSession?> register({
+  /// Nickname policy shared by the registration form and [register].
+  static final RegExp nicknameFormat = RegExp(r'^[a-zA-Z0-9_]{3,24}$');
+
+  /// First-time email/password registration with a unique app nickname.
+  ///
+  /// Unlike [login] (which keeps its historical null-on-failure contract),
+  /// this throws [AppFailure] so the form can tell apart "email già in uso",
+  /// "nickname già in uso" and network errors.
+  static Future<UserSession> register({
     required String email,
     required String password,
-    String? displayName,
+    required String nickname,
   }) async {
-    try {
-      final user = await _auth.registerWithEmail(
-          email: email, password: password, displayName: displayName);
-      unawaited(ServiceLocator.get<AnalyticsTracker>().logSignUp('password'));
-      return await _openSession(user, 'password');
-    } on AppFailure {
-      return null;
+    final handle = nickname.trim().toLowerCase();
+    if (!nicknameFormat.hasMatch(handle)) {
+      throw const DataFormatFailure(
+          message: 'Il nickname deve avere 3-24 caratteri (lettere, numeri, _).');
     }
+    if (await _profiles.isUsernameTaken(handle)) {
+      throw const ConflictFailure(message: 'Nickname già in uso. Scegline un altro.');
+    }
+
+    final user = await _auth.registerWithEmail(
+        email: email, password: password, displayName: nickname.trim());
+    unawaited(ServiceLocator.get<AnalyticsTracker>().logSignUp('password'));
+    final session = await _openSession(user, 'password');
+
+    try {
+      // Authoritative, race-free reservation. Losing the (tiny) race window
+      // after the pre-check leaves the account without a handle rather than
+      // failing the whole registration; the user can pick another later.
+      await _profiles.claimUsername(uid: user.uid, username: handle);
+    } on ConflictFailure catch (e, s) {
+      unawaited(ServiceLocator.get<CrashReporter>().recordError(e, s));
+    }
+    return session;
   }
 
   /// Google sign-in. Throws [AuthFailure] (check `isCancelled`) so the UI
