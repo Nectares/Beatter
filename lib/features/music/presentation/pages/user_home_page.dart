@@ -154,23 +154,29 @@ class UserHomePage extends StatelessWidget {
                             const SizedBox(height: AppSpacing.md),
 
                             FeatureCard(
-                              icon: Icons.change_history_rounded,
-                              title: 'Polyrhythm Lab',
-                              subtitle:
-                                  'Poliritmie animate e sincronizzate: guarda e senti il ritmo, non contarlo, non pensarlo, vivilo.',
-                              accentColor: AppColors.secondary,
-                              onTap: () => NavigationShellController.maybeOf(
-                                context,
-                              )?.selectTab(AppTab.polyrhythmLab.index),
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-
-                            FeatureCard(
                               icon: Icons.menu_book_rounded,
                               title: 'Sheet Mode',
                               subtitle:
                                   'Sfoglia le tue partiture su un vero pentagramma a cinque linee.',
                               accentColor: AppColors.secondary,
+                              isAvailable: false,
+                              onTap: () => Toast.show(
+                                ToastType.warning,
+                                'Funzionalità in arrivo!',
+                                context,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            FeatureCard(
+                              icon: Icons.change_history_rounded,
+                              title: 'Polyrhythm Lab',
+                              subtitle:
+                                  'Poliritmie animate e sincronizzate: guarda e senti il ritmo, non contarlo, non pensarlo, vivilo.',
+                              accentColor: AppColors.secondary,
+                              // onTap: () => NavigationShellController.maybeOf(
+                              //   context,
+                              // )?.selectTab(AppTab.polyrhythmLab.index),
                               isAvailable: false,
                               onTap: () => Toast.show(
                                 ToastType.warning,

@@ -64,7 +64,7 @@ class MainNavigationShell extends StatelessWidget {
       subtitle: 'Poliritmie animate e sincronizzate',
       icon: Icons.change_history_outlined,
       selectedIcon: Icons.change_history_rounded,
-      destinationIndex: 2,
+      //destinationIndex: 2, // DISABLED - Temporaneamente disabilitato per future implementazioni.
     ),
     ShellNavItem(
       label: 'Rhythm Generator',
