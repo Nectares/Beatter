@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:beatter/core/di/service_locator.dart';
 import 'package:beatter/services/exercise_generation/difficulty_presets.dart';
 import 'package:beatter/services/exercise_generation/exercise_generator.dart';
 import 'package:beatter/services/exercise_repository.dart';
@@ -13,6 +14,8 @@ void main() {
 
   setUpAll(() {
     SharedPreferences.setMockInitialValues({});
+    // The repository resolves its store through the backend locator.
+    ServiceLocator.configureLocal();
   });
 
   test('save assigns an id, prepends, and persists', () async {

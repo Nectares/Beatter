@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../../core/errors/app_failure.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../core/layout/responsive_context.dart';
@@ -25,6 +26,7 @@ class _LoginPageState extends State<LoginPage>
   UserRole _selectedRole = UserRole.user;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _isRegisterMode = false;
   String? _errorMessage;
 
   late AnimationController _animationController;
@@ -57,6 +59,21 @@ class _LoginPageState extends State<LoginPage>
   Color _roleColor(UserRole role) =>
       role == UserRole.admin ? AppColors.secondary : AppColors.primary;
 
+  void _navigateToHome(UserSession session) {
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            session.role == UserRole.admin
+            ? const AdminDashboard()
+            : const MainNavigationShell(initialTab: AppTab.home),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -65,11 +82,16 @@ class _LoginPageState extends State<LoginPage>
       _errorMessage = null;
     });
 
-    final session = await AuthService.login(
-      email: _emailController.text,
-      password: _passwordController.text,
-      expectedRole: _selectedRole,
-    );
+    final session = _isRegisterMode && _selectedRole == UserRole.user
+        ? await AuthService.register(
+            email: _emailController.text,
+            password: _passwordController.text,
+          )
+        : await AuthService.login(
+            email: _emailController.text,
+            password: _passwordController.text,
+            expectedRole: _selectedRole,
+          );
 
     if (!mounted) return;
 
@@ -78,24 +100,37 @@ class _LoginPageState extends State<LoginPage>
     });
 
     if (session != null) {
-      // Navigate based on role
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              session.role == UserRole.admin
-              ? const AdminDashboard()
-              : const MainNavigationShell(initialTab: AppTab.home),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
+      _navigateToHome(session);
     } else {
       setState(() {
         _errorMessage = _selectedRole == UserRole.admin
             ? 'Accesso amministratore fallito. Controlla le credenziali o il codice di accesso.'
-            : 'Credenziali non valide. Prova user@beatter.com / password123';
+            : _isRegisterMode
+            ? 'Registrazione non riuscita. L\'email potrebbe essere già in uso.'
+            : 'Credenziali non valide. Riprova o crea un account.';
+      });
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final session = await AuthService.loginWithGoogle();
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _navigateToHome(session);
+    } on AppFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        // A dismissed account picker is not an error worth showing.
+        _errorMessage = failure is AuthFailure && failure.isCancelled
+            ? null
+            : failure.message;
       });
     }
   }
@@ -105,6 +140,7 @@ class _LoginPageState extends State<LoginPage>
     setState(() {
       _selectedRole = role;
       _errorMessage = null;
+      _isRegisterMode = false;
       _emailController.clear();
       _passwordController.clear();
     });
@@ -279,9 +315,11 @@ class _LoginPageState extends State<LoginPage>
 
                 // Fields Label
                 Text(
-                  _selectedRole == UserRole.user
-                      ? 'Accedi come Ascoltatore'
-                      : 'Pannello di Controllo Admin',
+                  _selectedRole == UserRole.admin
+                      ? 'Pannello di Controllo Admin'
+                      : _isRegisterMode
+                      ? 'Crea il tuo account'
+                      : 'Accedi come Ascoltatore',
                   style: textTheme.headlineSmall,
                   textAlign: TextAlign.center,
                 ),
@@ -380,9 +418,55 @@ class _LoginPageState extends State<LoginPage>
                       : Text(
                           _selectedRole == UserRole.admin
                               ? 'ACCEDI COME ADMIN'
+                              : _isRegisterMode
+                              ? 'REGISTRATI'
                               : 'ACCEDI ORA',
                         ),
                 ),
+
+                // Alternative sign-in paths (user role only).
+                if (_selectedRole == UserRole.user) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
+                        child: Text(
+                          'oppure',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _handleGoogleLogin,
+                    icon: Icon(Icons.g_mobiledata_rounded,
+                        size: 28, color: roleColor),
+                    label: const Text('Continua con Google'),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => setState(() {
+                              _isRegisterMode = !_isRegisterMode;
+                              _errorMessage = null;
+                            }),
+                    child: Text(
+                      _isRegisterMode
+                          ? 'Hai già un account? Accedi'
+                          : 'Non hai un account? Registrati',
+                      style: textTheme.bodySmall?.copyWith(color: roleColor),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

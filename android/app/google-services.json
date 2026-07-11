@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "242679736794",
+    "project_id": "beatterapp",
+    "storage_bucket": "beatterapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:242679736794:android:f1bf90daecd68085b338e3",
+        "android_client_info": {
+          "package_name": "com.nectares.beatter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "242679736794-p25qgdver5rt344njbsrab6eg060582g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaSv2YV5AZY9OHQjmCJifljPzVeQo0FCU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "242679736794-p25qgdver5rt344njbsrab6eg060582g.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "242679736794-1k1fbj59dcdugsuub10288gr7vksm51s.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.nectares.beatter"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

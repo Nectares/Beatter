@@ -1,0 +1,96 @@
+rules_version = '2';
+
+// Beatter Firestore security rules.
+//
+// Principles:
+//  - Users own everything under users/{uid}; nobody else can touch it.
+//  - Server-computed aggregates (stats, achievements, pointHistory,
+//    leaderboards) are read-only for clients: only Cloud Functions (Admin SDK,
+//    which bypasses rules) may write them, so points can't be forged.
+//  - Workout history is append-only from the client and immutable after
+//    creation, with sanity bounds so the point pipeline can't be gamed.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{uid} {
+      // Profiles are private for now; relax `read` to public when social
+      // features ship (schema is already denormalization-ready for it).
+      allow read: if isOwner(uid) || isAdmin();
+      // Users can never grant themselves the admin role.
+      allow create: if isOwner(uid) && request.resource.data.role == 'user';
+      allow update: if (isOwner(uid)
+                        && request.resource.data.role == resource.data.role)
+                    || isAdmin();
+      allow delete: if false; // account deletion goes through a Cloud Function
+
+      match /settings/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /workouts/{workoutId} {
+        allow read: if isOwner(uid);
+        // Append-only, provisional points, bounded duration (max 24h) so the
+        // server-side point calculation can trust its inputs.
+        allow create: if isOwner(uid)
+          && request.resource.data.pointsStatus == 'provisional'
+          && request.resource.data.durationSeconds is int
+          && request.resource.data.durationSeconds >= 0
+          && request.resource.data.durationSeconds <= 86400
+          && request.resource.data.difficultyLevel is int
+          && request.resource.data.difficultyLevel >= 1
+          && request.resource.data.difficultyLevel <= 5;
+        allow update, delete: if false;
+      }
+
+      match /compositions/{compositionId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /exercises/{exerciseId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Cloud Functions only.
+      match /stats/{docId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+      match /achievements/{achievementId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+      match /pointHistory/{entryId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+    }
+
+    // Global + weekly leaderboards, maintained by Cloud Functions.
+    match /leaderboards/{boardId}/entries/{entryUid} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Username reservations for future social handles. Doc id is the
+    // lowercase handle; create-if-absent gives atomic uniqueness.
+    match /usernames/{handle} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+  }
+}

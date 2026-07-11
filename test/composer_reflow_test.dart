@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:beatter/core/di/service_locator.dart';
 import 'package:beatter/models/rhythm_element.dart';
 import 'package:beatter/models/composition.dart';
 import 'package:beatter/services/composition_repository.dart';
@@ -75,6 +76,8 @@ void main() {
   group('CompositionRepository', () {
     test('save, overwrite, rename, duplicate and delete', () async {
       SharedPreferences.setMockInitialValues({});
+      // The repository resolves its store through the backend locator.
+      ServiceLocator.configureLocal();
       final repo = CompositionRepository();
       await repo.init();
 

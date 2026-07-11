@@ -1,58 +1,90 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/di/service_locator.dart';
+import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/document_store.dart';
+import '../domain/services/crash_reporter.dart';
 import '../models/rhythm_exercise.dart';
 
-/// Local persistence for generated rhythm reading exercises, backed by
-/// shared_preferences — same proportionate, dependency-light approach as
-/// [CompositionRepository], which this deliberately mirrors.
+/// UI-facing saved-exercise library for Sheet Mode. Same facade pattern as
+/// [CompositionRepository]: unchanged ChangeNotifier API, backend-provided
+/// storage (device-local when signed out, `users/{uid}/exercises` with
+/// offline persistence when signed in).
 class ExerciseRepository extends ChangeNotifier {
   static final ExerciseRepository _instance = ExerciseRepository._internal();
   factory ExerciseRepository() => _instance;
   ExerciseRepository._internal();
 
-  static const String _storageKey = 'sheet_mode.exercises.v1';
-
   final List<RhythmExercise> _exercises = [];
   bool _initialized = false;
+
+  DocumentStore<RhythmExercise>? _store;
+  StreamSubscription<List<RhythmExercise>>? _storeSub;
+  StreamSubscription<Object?>? _authSub;
+  String? _attachedUid;
 
   /// Saved exercises, newest first.
   List<RhythmExercise> get exercises => List.unmodifiable(_exercises);
   bool get isInitialized => _initialized;
 
-  /// Loads saved exercises. Safe to call more than once (e.g. from multiple
+  /// Binds to the backend. Safe to call more than once (e.g. from multiple
   /// screens' initState) — later calls are no-ops.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
 
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_storageKey);
-    if (raw == null) return;
+    final auth = ServiceLocator.get<AuthRepository>();
+    await _attachStore(auth.currentUser?.uid);
+    _authSub = auth.authStateChanges().listen((user) {
+      _attachStore(user?.uid);
+    });
+  }
 
-    try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final items = (decoded['items'] as List? ?? [])
-          .map((e) => RhythmExercise.fromJson(e as Map<String, dynamic>))
-          .toList();
-      _exercises
-        ..clear()
-        ..addAll(items);
-      notifyListeners();
-    } catch (_) {
-      // Corrupt/unreadable data — start fresh rather than crash the app.
-      _exercises.clear();
+  Future<void> _attachStore(String? uid) async {
+    if (_store != null && uid == _attachedUid) return;
+    _attachedUid = uid;
+
+    await _storeSub?.cancel();
+    await _store?.dispose();
+
+    final store = ServiceLocator.get<DocumentStoreFactory>().exercises(uid);
+    _store = store;
+    _storeSub = store.watchAll().listen(
+      (items) {
+        _exercises
+          ..clear()
+          ..addAll(items);
+        notifyListeners();
+      },
+      onError: (Object e, StackTrace s) =>
+          ServiceLocator.get<CrashReporter>().recordError(e, s),
+    );
+
+    if (uid != null && ServiceLocator.isFirebase) {
+      unawaited(_migrateLocalLibraryOnce(uid, store));
     }
   }
 
-  Future<void> _persist() async {
-    final prefs = await SharedPreferences.getInstance();
-    final payload = {
-      'schemaVersion': 1,
-      'items': _exercises.map((e) => e.toJson()).toList(),
-    };
-    await prefs.setString(_storageKey, jsonEncode(payload));
+  Future<void> _migrateLocalLibraryOnce(
+      String uid, DocumentStore<RhythmExercise> cloudStore) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final flagKey = 'backend.migrated.exercises.$uid';
+      if (prefs.getBool(flagKey) ?? false) return;
+
+      final localItems =
+          await ServiceLocator.get<DocumentStoreFactory>().exercises(null).loadAll();
+      for (final item in localItems) {
+        await cloudStore.upsert(item);
+      }
+      await prefs.setBool(flagKey, true);
+    } catch (e, s) {
+      ServiceLocator.get<CrashReporter>().recordError(e, s);
+    }
   }
 
   String _generateId() {
@@ -60,33 +92,33 @@ class ExerciseRepository extends ChangeNotifier {
     return '${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 31)}';
   }
 
+  void _upsertLocal(RhythmExercise exercise, {required bool prepend}) {
+    final index = _exercises.indexWhere((e) => e.id == exercise.id);
+    if (index == -1) {
+      prepend ? _exercises.insert(0, exercise) : _exercises.add(exercise);
+    } else {
+      _exercises[index] = exercise;
+    }
+    notifyListeners();
+  }
+
   /// Saves [exercise]. If it has no id yet, assigns one and prepends it
   /// (first save); otherwise overwrites the existing entry with the same id.
   Future<RhythmExercise> save(RhythmExercise exercise) async {
-    RhythmExercise toSave;
-
-    final existingIndex = _exercises.indexWhere((e) => e.id == exercise.id);
-    if (exercise.id.isEmpty || existingIndex == -1) {
-      toSave = exercise.copyWith(
-        id: exercise.id.isEmpty ? _generateId() : exercise.id,
-      );
-      _exercises.insert(0, toSave);
-    } else {
-      toSave = exercise;
-      _exercises[existingIndex] = toSave;
-    }
-
-    await _persist();
-    notifyListeners();
+    final toSave = exercise.id.isEmpty
+        ? exercise.copyWith(id: _generateId())
+        : exercise;
+    _upsertLocal(toSave, prepend: true);
+    await _store?.upsert(toSave);
     return toSave;
   }
 
   Future<void> rename(String id, String newTitle) async {
     final index = _exercises.indexWhere((e) => e.id == id);
     if (index == -1) return;
-    _exercises[index] = _exercises[index].copyWith(title: newTitle);
-    await _persist();
-    notifyListeners();
+    final renamed = _exercises[index].copyWith(title: newTitle);
+    _upsertLocal(renamed, prepend: false);
+    await _store?.upsert(renamed);
   }
 
   Future<RhythmExercise> duplicate(String id) async {
@@ -96,15 +128,22 @@ class ExerciseRepository extends ChangeNotifier {
       title: '${source.title} (copia)',
       createdAt: DateTime.now(),
     );
-    _exercises.insert(0, copy);
-    await _persist();
-    notifyListeners();
+    _upsertLocal(copy, prepend: true);
+    await _store?.upsert(copy);
     return copy;
   }
 
   Future<void> delete(String id) async {
     _exercises.removeWhere((e) => e.id == id);
-    await _persist();
     notifyListeners();
+    await _store?.delete(id);
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    _storeSub?.cancel();
+    _store?.dispose();
+    super.dispose();
   }
 }

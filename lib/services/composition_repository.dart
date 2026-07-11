@@ -1,57 +1,100 @@
-import 'dart:convert';
+import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/di/service_locator.dart';
+import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/document_store.dart';
+import '../domain/services/analytics_tracker.dart';
+import '../domain/services/crash_reporter.dart';
 import '../models/composition.dart';
 
-/// Local persistence for Composer Mode compositions, backed by
-/// shared_preferences (proportionate for a handful of small JSON blobs —
-/// matches this app's otherwise dependency-light approach).
+/// UI-facing composition library. Public API is unchanged from the
+/// shared_preferences era — widgets keep listening to this ChangeNotifier —
+/// but storage now goes through the backend's [DocumentStore]:
+///
+///  - signed out / local mode → device-local store (same storage key as
+///    before, so existing libraries survive);
+///  - signed in with Firebase → `users/{uid}/compositions` with offline
+///    persistence and multi-device sync.
+///
+/// Mutations update the in-memory list immediately (optimistic) and let the
+/// store's stream reconcile with the backend.
 class CompositionRepository extends ChangeNotifier {
   static final CompositionRepository _instance = CompositionRepository._internal();
   factory CompositionRepository() => _instance;
   CompositionRepository._internal();
 
-  static const String _storageKey = 'composer.compositions.v1';
-
   final List<Composition> _compositions = [];
   bool _initialized = false;
+
+  DocumentStore<Composition>? _store;
+  StreamSubscription<List<Composition>>? _storeSub;
+  StreamSubscription<Object?>? _authSub;
+  String? _attachedUid;
 
   List<Composition> get compositions => List.unmodifiable(_compositions);
   bool get isInitialized => _initialized;
 
-  /// Loads saved compositions. Safe to call more than once (e.g. from
-  /// multiple screens' initState) — later calls are no-ops.
+  /// Binds to the backend. Safe to call more than once (e.g. from multiple
+  /// screens' initState) — later calls are no-ops.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
 
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_storageKey);
-    if (raw == null) return;
+    final auth = ServiceLocator.get<AuthRepository>();
+    await _attachStore(auth.currentUser?.uid);
+    _authSub = auth.authStateChanges().listen((user) {
+      _attachStore(user?.uid);
+    });
+  }
 
-    try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      final items = (decoded['items'] as List? ?? [])
-          .map((e) => Composition.fromJson(e as Map<String, dynamic>))
-          .toList();
-      _compositions
-        ..clear()
-        ..addAll(items);
-      notifyListeners();
-    } catch (_) {
-      // Corrupt/unreadable data — start fresh rather than crash the app.
-      _compositions.clear();
+  Future<void> _attachStore(String? uid) async {
+    if (_store != null && uid == _attachedUid) return;
+    _attachedUid = uid;
+
+    await _storeSub?.cancel();
+    await _store?.dispose();
+
+    final store = ServiceLocator.get<DocumentStoreFactory>().compositions(uid);
+    _store = store;
+    _storeSub = store.watchAll().listen(
+      (items) {
+        _compositions
+          ..clear()
+          ..addAll(items);
+        notifyListeners();
+      },
+      onError: (Object e, StackTrace s) =>
+          ServiceLocator.get<CrashReporter>().recordError(e, s),
+    );
+
+    if (uid != null && ServiceLocator.isFirebase) {
+      unawaited(_migrateLocalLibraryOnce(uid, store));
     }
   }
 
-  Future<void> _persist() async {
-    final prefs = await SharedPreferences.getInstance();
-    final payload = {
-      'schemaVersion': 1,
-      'items': _compositions.map((c) => c.toJson()).toList(),
-    };
-    await prefs.setString(_storageKey, jsonEncode(payload));
+  /// One-time upload of the pre-backend on-device library into the user's
+  /// cloud collection, so nothing is lost the first time they sign in.
+  Future<void> _migrateLocalLibraryOnce(
+      String uid, DocumentStore<Composition> cloudStore) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final flagKey = 'backend.migrated.compositions.$uid';
+      if (prefs.getBool(flagKey) ?? false) return;
+
+      final localItems = await ServiceLocator.get<DocumentStoreFactory>()
+          .compositions(null)
+          .loadAll();
+      for (final item in localItems) {
+        await cloudStore.upsert(item);
+      }
+      await prefs.setBool(flagKey, true);
+    } catch (e, s) {
+      ServiceLocator.get<CrashReporter>().recordError(e, s);
+    }
   }
 
   String _generateId() {
@@ -59,39 +102,45 @@ class CompositionRepository extends ChangeNotifier {
     return '${DateTime.now().microsecondsSinceEpoch}-${random.nextInt(1 << 31)}';
   }
 
+  void _upsertLocal(Composition composition) {
+    final index = _compositions.indexWhere((c) => c.id == composition.id);
+    if (index == -1) {
+      _compositions.add(composition);
+    } else {
+      _compositions[index] = composition;
+    }
+    notifyListeners();
+  }
+
   /// Saves [composition]. If it has no id yet, assigns one and appends it
   /// (first save); otherwise overwrites the existing entry with the same id.
   Future<Composition> save(Composition composition) async {
     final now = DateTime.now();
-    Composition toSave;
+    final isNew = composition.id.isEmpty ||
+        !_compositions.any((c) => c.id == composition.id);
+    final toSave = composition.copyWith(
+      id: composition.id.isEmpty ? _generateId() : composition.id,
+      modifiedAt: now,
+    );
 
-    final existingIndex = _compositions.indexWhere((c) => c.id == composition.id);
-    if (composition.id.isEmpty || existingIndex == -1) {
-      toSave = composition.copyWith(
-        id: composition.id.isEmpty ? _generateId() : composition.id,
-        createdAt: composition.createdAt,
-        modifiedAt: now,
-      );
-      _compositions.add(toSave);
-    } else {
-      toSave = composition.copyWith(modifiedAt: now);
-      _compositions[existingIndex] = toSave;
+    _upsertLocal(toSave);
+    await _store?.upsert(toSave);
+    if (isNew) {
+      unawaited(ServiceLocator.get<AnalyticsTracker>()
+          .logCompositionSaved(noteCount: toSave.notes.length));
     }
-
-    await _persist();
-    notifyListeners();
     return toSave;
   }
 
   Future<void> rename(String id, String newTitle) async {
     final index = _compositions.indexWhere((c) => c.id == id);
     if (index == -1) return;
-    _compositions[index] = _compositions[index].copyWith(
+    final renamed = _compositions[index].copyWith(
       title: newTitle,
       modifiedAt: DateTime.now(),
     );
-    await _persist();
-    notifyListeners();
+    _upsertLocal(renamed);
+    await _store?.upsert(renamed);
   }
 
   Future<Composition> duplicate(String id) async {
@@ -103,15 +152,22 @@ class CompositionRepository extends ChangeNotifier {
       createdAt: now,
       modifiedAt: now,
     );
-    _compositions.add(copy);
-    await _persist();
-    notifyListeners();
+    _upsertLocal(copy);
+    await _store?.upsert(copy);
     return copy;
   }
 
   Future<void> delete(String id) async {
     _compositions.removeWhere((c) => c.id == id);
-    await _persist();
     notifyListeners();
+    await _store?.delete(id);
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    _storeSub?.cancel();
+    _store?.dispose();
+    super.dispose();
   }
 }
