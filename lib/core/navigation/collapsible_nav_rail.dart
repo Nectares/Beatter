@@ -331,7 +331,7 @@ class _RailHeader extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Rhythm Training',
+                    'Play the unexpected!',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: textTheme.bodySmall?.copyWith(

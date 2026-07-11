@@ -42,7 +42,10 @@ class ShellNavDrawer extends StatelessWidget {
                 colors: [AppColors.backgroundStart, AppColors.backgroundEnd],
               ),
               border: Border(
-                right: BorderSide(color: AppColors.surfaceBorder.withValues(alpha: 0.6), width: 1.5),
+                right: BorderSide(
+                  color: AppColors.surfaceBorder.withValues(alpha: 0.6),
+                  width: 1.5,
+                ),
               ),
             ),
             // The whole drawer is one scrollable list — including the
@@ -63,8 +66,13 @@ class ShellNavDrawer extends StatelessWidget {
                   _buildHeader(context),
                   const SizedBox(height: AppSpacing.xs),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                    child: Divider(height: 1, color: AppColors.surfaceBorder.withValues(alpha: 0.8)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: Divider(
+                      height: 1,
+                      color: AppColors.surfaceBorder.withValues(alpha: 0.8),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Padding(
@@ -75,22 +83,30 @@ class ShellNavDrawer extends StatelessWidget {
                     child: Text(
                       'STRUMENTI',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            letterSpacing: 1.8,
-                            color: AppColors.textMuted.withValues(alpha: 0.9),
-                          ),
+                        letterSpacing: 1.8,
+                        color: AppColors.textMuted.withValues(alpha: 0.9),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Column(
-                      children: [for (final item in navItems) _buildNavItem(context, item)],
+                      children: [
+                        for (final item in navItems)
+                          _buildNavItem(context, item),
+                      ],
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                    child: Divider(height: 1, color: AppColors.surfaceBorder.withValues(alpha: 0.8)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
+                    child: Divider(
+                      height: 1,
+                      color: AppColors.surfaceBorder.withValues(alpha: 0.8),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Padding(
@@ -109,7 +125,12 @@ class ShellNavDrawer extends StatelessWidget {
   Widget _buildHeader(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
       child: Row(
         children: [
           Container(
@@ -123,10 +144,18 @@ class ShellNavDrawer extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(AppRadius.md),
               boxShadow: [
-                BoxShadow(color: AppColors.primary.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
-            child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.music_note_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm + 2),
           Expanded(
@@ -138,13 +167,20 @@ class ShellNavDrawer extends StatelessWidget {
                   'Beatter',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: 0.3),
+                  style: textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    letterSpacing: 0.3,
+                  ),
                 ),
                 Text(
-                  'Rhythm Training',
+                  'Play the unexpected!',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -155,7 +191,8 @@ class ShellNavDrawer extends StatelessWidget {
   }
 
   Widget _buildNavItem(BuildContext context, ShellNavItem item) {
-    final bool isActive = !item.isComingSoon && item.destinationIndex == selectedIndex;
+    final bool isActive =
+        !item.isComingSoon && item.destinationIndex == selectedIndex;
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
@@ -177,11 +214,21 @@ class ShellNavDrawer extends StatelessWidget {
             highlightColor: AppColors.primary.withValues(alpha: 0.06),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2, vertical: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm + 2,
+                vertical: AppSpacing.sm,
+              ),
               decoration: BoxDecoration(
-                color: isActive ? AppColors.primary.withValues(alpha: 0.12) : Colors.transparent,
+                color: isActive
+                    ? AppColors.primary.withValues(alpha: 0.12)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppRadius.md + 2),
-                border: isActive ? Border.all(color: AppColors.primary.withValues(alpha: 0.25), width: 1.2) : null,
+                border: isActive
+                    ? Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.25),
+                        width: 1.2,
+                      )
+                    : null,
               ),
               child: Row(
                 children: [
@@ -189,13 +236,17 @@ class ShellNavDrawer extends StatelessWidget {
                     width: 38,
                     height: 38,
                     decoration: BoxDecoration(
-                      color: isActive ? AppColors.primary.withValues(alpha: 0.15) : AppColors.surfaceBorder.withValues(alpha: 0.4),
+                      color: isActive
+                          ? AppColors.primary.withValues(alpha: 0.15)
+                          : AppColors.surfaceBorder.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(AppRadius.sm + 2),
                     ),
                     child: Icon(
                       isActive ? (item.selectedIcon ?? item.icon) : item.icon,
                       size: 20,
-                      color: isActive ? AppColors.primary : AppColors.textSecondary,
+                      color: isActive
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm + 2),
@@ -209,8 +260,12 @@ class ShellNavDrawer extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: textTheme.bodyLarge?.copyWith(
                             fontSize: 14,
-                            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                            color: isActive ? AppColors.primary : AppColors.textPrimary,
+                            fontWeight: isActive
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isActive
+                                ? AppColors.primary
+                                : AppColors.textPrimary,
                           ),
                         ),
                         if (item.subtitle != null)
@@ -219,7 +274,9 @@ class ShellNavDrawer extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: textTheme.bodySmall?.copyWith(
-                              color: isActive ? AppColors.primary.withValues(alpha: 0.7) : AppColors.textMuted,
+                              color: isActive
+                                  ? AppColors.primary.withValues(alpha: 0.7)
+                                  : AppColors.textMuted,
                             ),
                           ),
                       ],
@@ -227,19 +284,30 @@ class ShellNavDrawer extends StatelessWidget {
                   ),
                   if (item.isComingSoon)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceBorder.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(AppRadius.sm - 2),
-                        border: Border.all(color: AppColors.textMuted.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: AppColors.textMuted.withValues(alpha: 0.2),
+                        ),
                       ),
-                      child: Text('Soon', style: textTheme.labelSmall?.copyWith(fontSize: 9)),
+                      child: Text(
+                        'Soon',
+                        style: textTheme.labelSmall?.copyWith(fontSize: 9),
+                      ),
                     )
                   else if (isActive)
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                 ],
               ),
@@ -259,11 +327,17 @@ class ShellNavDrawer extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md + 2),
         onTap: onLogout,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm + 2,
+            vertical: AppSpacing.sm,
+          ),
           decoration: BoxDecoration(
             color: AppColors.error.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(AppRadius.md + 2),
-            border: Border.all(color: AppColors.error.withValues(alpha: 0.15), width: 1.2),
+            border: Border.all(
+              color: AppColors.error.withValues(alpha: 0.15),
+              width: 1.2,
+            ),
           ),
           child: Row(
             children: [
@@ -274,7 +348,11 @@ class ShellNavDrawer extends StatelessWidget {
                   color: AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.sm + 2),
                 ),
-                child: const Icon(Icons.logout_rounded, size: 20, color: AppColors.error),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: AppColors.error,
+                ),
               ),
               const SizedBox(width: AppSpacing.sm + 2),
               Expanded(
@@ -282,7 +360,11 @@ class ShellNavDrawer extends StatelessWidget {
                   'Logout',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyLarge?.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error),
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.error,
+                  ),
                 ),
               ),
             ],
