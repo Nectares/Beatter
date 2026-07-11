@@ -85,7 +85,7 @@ class _LoginPageState extends State<LoginPage>
           pageBuilder: (context, animation, secondaryAnimation) =>
               session.role == UserRole.admin
               ? const AdminDashboard()
-              : const MainNavigationShell(initialTab: AppTab.flowMode),
+              : const MainNavigationShell(initialTab: AppTab.home),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },

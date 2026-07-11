@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
-import 'features/music/presentation/navigation/main_navigation_shell.dart'; // TEMP-VERIFY
+import 'features/auth/presentation/pages/login_page.dart';
 
 void main() {
   runApp(const BeatterApp());
@@ -15,9 +15,7 @@ class BeatterApp extends StatelessWidget {
       title: 'Beatter',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const MainNavigationShell(
-        initialTab: AppTab.polyrhythmLab,
-      ), // TEMP-VERIFY: const LoginPage(),
+      home: const LoginPage(),
     );
   }
 }
