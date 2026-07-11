@@ -124,6 +124,45 @@ List<RhythmMeasure> reflowMeasures(
   return measures;
 }
 
+/// A contiguous run of measures that fits on one staff system (one row).
+class SystemBreak {
+  final int start;
+  final int count;
+
+  const SystemBreak({required this.start, required this.count});
+}
+
+/// Splits [measures] into staff systems no wider than [maxWidth], wrapping
+/// onto additional rows like professional notation software. Greedy: each
+/// system takes as many whole measures as fit (always at least one, so a
+/// narrow screen can never produce an infinite loop). Pure geometry — used
+/// by both the on-screen wrapped staff view and the PDF exporter, so screen
+/// and paper can never disagree about where lines break.
+List<SystemBreak> computeSystemBreaks(
+  List<RhythmMeasure> measures,
+  double maxWidth,
+) {
+  const double leading = staffLeadingX + staffClefWidth + staffTimeSigWidth;
+  final breaks = <SystemBreak>[];
+
+  int start = 0;
+  while (start < measures.length) {
+    double width = leading;
+    int count = 0;
+    while (start + count < measures.length) {
+      final double next =
+          measureWidth(measures[start + count].timeSignature) + staffMeasureGap;
+      if (count > 0 && width + next > maxWidth) break;
+      width += next;
+      count++;
+    }
+    breaks.add(SystemBreak(start: start, count: count));
+    start += count;
+  }
+
+  return breaks;
+}
+
 /// Inverse of [noteY]: the nearest natural note name for a Y coordinate.
 /// Only ever returns natural (unaccidented) notes, matching the fact that
 /// vertical staff position never encodes accidentals in this codebase.

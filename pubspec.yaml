@@ -36,6 +36,22 @@ dependencies:
   cupertino_icons: ^1.0.8
   audioplayers: ^6.0.0
   shared_preferences: ^2.3.2
+  pdf: ^3.12.0
+  printing: ^5.14.3
+
+  # --- Firebase backend ---
+  firebase_core: ^4.1.0
+  firebase_auth: ^6.1.0
+  cloud_firestore: ^6.0.0
+  firebase_storage: ^13.0.0
+  cloud_functions: ^6.0.0
+  firebase_analytics: ^12.0.0
+  firebase_crashlytics: ^5.0.0
+  firebase_app_check: ^0.4.0
+  google_sign_in: ^7.2.0
+
+  # Dependency injection (service locator) for the repository layer.
+  get_it: ^8.0.0
 
 dev_dependencies:
   flutter_test:

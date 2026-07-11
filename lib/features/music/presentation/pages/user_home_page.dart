@@ -16,12 +16,6 @@ class UserHomePage extends StatelessWidget {
   // Lista dei moduli futuri per la sezione "Prossimamente"
   static const List<Map<String, String>> comingSoonFeatures = [
     {
-      'title': 'Rhythm Generator',
-      'description':
-          'Letture ritmiche sul pentagramma. Allena il tuo timing con il player audio integrato.',
-      'icon': '🎼',
-    },
-    {
       'title': 'Ear Training Assistant',
       'description':
           'Allena il tuo orecchio a riconoscere accordi, intervalli e intonazione in modo interattivo.',
@@ -157,14 +151,11 @@ class UserHomePage extends StatelessWidget {
                               icon: Icons.menu_book_rounded,
                               title: 'Sheet Mode',
                               subtitle:
-                                  'Sfoglia le tue partiture su un vero pentagramma a cinque linee.',
+                                  'Genera esercizi di lettura ritmica su pentagramma: riproducili, salvali ed esportali in PDF.',
                               accentColor: AppColors.secondary,
-                              isAvailable: false,
-                              onTap: () => Toast.show(
-                                ToastType.warning,
-                                'Funzionalità in arrivo!',
+                              onTap: () => NavigationShellController.maybeOf(
                                 context,
-                              ),
+                              )?.selectTab(AppTab.sheetMode.index),
                             ),
                             const SizedBox(height: AppSpacing.md),
 

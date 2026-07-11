@@ -5,13 +5,14 @@ import '../../../../core/navigation/shell_nav_item.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../pages/flow_mode_page.dart';
 import '../pages/polyrhythm_lab_page.dart';
+import '../pages/sheet_mode_page.dart';
 import '../pages/user_home_page.dart';
 
 /// The app's root destinations, in the same order as
 /// [MainNavigationShell.destinations] — used instead of raw indices so
 /// callers (e.g. login routing, or a page asking the shell to switch tabs)
 /// stay readable and can't drift out of sync with the destination list.
-enum AppTab { home, flowMode, polyrhythmLab }
+enum AppTab { home, flowMode, polyrhythmLab, sheetMode }
 
 /// Assembles the app's root [NavigationShell]. [destinations] are the real,
 /// navigable pages backing the shell's [IndexedStack]; [navItems] is the
@@ -42,6 +43,12 @@ class MainNavigationShell extends StatelessWidget {
       selectedIcon: Icons.change_history_rounded,
       page: PolyrhythmLabPage(),
     ),
+    ShellDestination(
+      label: 'Sheet Mode',
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book_rounded,
+      page: SheetModePage(),
+    ),
   ];
 
   static const List<ShellNavItem> navItems = [
@@ -67,14 +74,11 @@ class MainNavigationShell extends StatelessWidget {
       //destinationIndex: 2, // DISABLED - Temporaneamente disabilitato per future implementazioni.
     ),
     ShellNavItem(
-      label: 'Rhythm Generator',
-      subtitle: 'Letture sul pentagramma',
-      icon: Icons.music_note_rounded,
-    ),
-    ShellNavItem(
       label: 'Sheet Mode',
-      subtitle: 'Trascrizioni e partiture',
-      icon: Icons.menu_book_rounded,
+      subtitle: 'Esercizi di lettura ritmica',
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book_rounded,
+      destinationIndex: 3,
     ),
     ShellNavItem(
       label: 'Composer Mode',

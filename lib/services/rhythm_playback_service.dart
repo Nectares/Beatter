@@ -274,8 +274,10 @@ class RhythmPlaybackService extends ChangeNotifier {
     }
   }
 
-  /// Avvia la riproduzione in loop infinito.
-  void play() {
+  /// Avvia la riproduzione. Con [loop] attivo (default) ripete all'infinito;
+  /// con [loop] disattivo esegue un singolo passaggio e si ferma da sola
+  /// alla fine (usato dagli esercizi di lettura di Sheet Mode).
+  void play({bool loop = true}) {
     if (_timeline.isEmpty) return;
 
     // Evita doppio play: se già in esecuzione non fare nulla
@@ -285,7 +287,7 @@ class RhythmPlaybackService extends ChangeNotifier {
       // Resume dalla pausa: riprende dallo stesso punto
       _isPaused = false;
       _isPlaying = true;
-      _isLooping = true;
+      _isLooping = loop;
       _stopwatch.start();
       _startSchedulerLoop();
       notifyListeners();
@@ -295,7 +297,7 @@ class RhythmPlaybackService extends ChangeNotifier {
     // Avvio da zero
     _isPlaying = true;
     _isPaused = false;
-    _isLooping = true;
+    _isLooping = loop;
     _nextEventIndex = 0;
     _loopStartMs = 0.0;
     _stopwatch.reset();

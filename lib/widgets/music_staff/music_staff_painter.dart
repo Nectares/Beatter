@@ -16,6 +16,10 @@ class MusicStaffPainter extends CustomPainter {
   final int activeElementIndex;
   final int? activeTripletIndex;
 
+  /// Multi-system layouts (wrapped staff, PDF export) show the time
+  /// signature only on the first system, like engraved scores.
+  final bool showTimeSignature;
+
   static const double lineSpacing = geometry.lineSpacing;
   static const double noteWidth = geometry.noteWidth;
   static const double noteHeight = geometry.noteHeight;
@@ -25,6 +29,7 @@ class MusicStaffPainter extends CustomPainter {
     required this.activeMeasureIndex,
     required this.activeElementIndex,
     this.activeTripletIndex,
+    this.showTimeSignature = true,
   });
 
   @override
@@ -51,13 +56,15 @@ class MusicStaffPainter extends CustomPainter {
 
     _drawTrebleClef(canvas, geometry.staffLeadingX, midY, lineSpacing);
 
-    final String timeSig = measures.first.timeSignature;
-    _drawTimeSignature(
-      canvas,
-      geometry.staffLeadingX + geometry.staffClefWidth,
-      midY,
-      timeSig,
-    );
+    if (showTimeSignature) {
+      final String timeSig = measures.first.timeSignature;
+      _drawTimeSignature(
+        canvas,
+        geometry.staffLeadingX + geometry.staffClefWidth,
+        midY,
+        timeSig,
+      );
+    }
 
     final layout = geometry.computeLayout(measures);
 
@@ -477,6 +484,7 @@ class MusicStaffPainter extends CustomPainter {
     return oldDelegate.activeMeasureIndex != activeMeasureIndex ||
         oldDelegate.activeElementIndex != activeElementIndex ||
         oldDelegate.activeTripletIndex != activeTripletIndex ||
+        oldDelegate.showTimeSignature != showTimeSignature ||
         oldDelegate.measures != measures;
   }
 }
