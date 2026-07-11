@@ -66,6 +66,7 @@ flutter:
     - assets/audio/stick.wav
     - assets/audio/snare.wav
     - assets/audio/notes/
+    - assets/audio/polyrhythm/
     - assets/logos/logo_beatter.png
     - assets/icon/
 

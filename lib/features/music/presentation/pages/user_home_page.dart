@@ -22,12 +22,6 @@ class UserHomePage extends StatelessWidget {
       'icon': '🎼',
     },
     {
-      'title': 'Polyrhythms',
-      'description':
-          'Allenamento poliritmico per indipendenza e coordinazione avanzata.',
-      'icon': '🥁',
-    },
-    {
       'title': 'Ear Training Assistant',
       'description':
           'Allena il tuo orecchio a riconoscere accordi, intervalli e intonazione in modo interattivo.',
@@ -70,14 +64,18 @@ class UserHomePage extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.xs,
-                    vertical: context.responsive(portrait: 16.0, landscape: 8.0),
+                    vertical: context.responsive(
+                      portrait: 16.0,
+                      landscape: 8.0,
+                    ),
                   ),
                   child: Row(
                     children: [
                       // Opens the phone drawer. Hidden on tablet/desktop
                       // chrome, where the rail is always visible instead —
                       // ShellMenuButton figures that out on its own.
-                      if (ShellMenuButton.maybe(context) case final menuButton?) ...[
+                      if (ShellMenuButton.maybe(context)
+                          case final menuButton?) ...[
                         menuButton,
                         const SizedBox(width: AppSpacing.xxs),
                       ],
@@ -85,16 +83,28 @@ class UserHomePage extends StatelessWidget {
                       const CircleAvatar(
                         radius: 20,
                         backgroundColor: AppColors.secondary,
-                        child: Icon(Icons.person, color: Colors.white, size: 20),
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Benvenuto,', style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+                          Text(
+                            'Benvenuto,',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                           Text(
                             'Utente Standard',
-                            style: textTheme.titleMedium?.copyWith(fontSize: 15, fontWeight: FontWeight.bold),
+                            style: textTheme.titleMedium?.copyWith(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -106,7 +116,9 @@ class UserHomePage extends StatelessWidget {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.lg,
+                    ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 720),
@@ -117,7 +129,10 @@ class UserHomePage extends StatelessWidget {
                             // Titolo Sezione
                             Text(
                               'Funzionalità Attive',
-                              style: textTheme.headlineSmall?.copyWith(fontSize: 18, letterSpacing: 0.5),
+                              style: textTheme.headlineSmall?.copyWith(
+                                fontSize: 18,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.sm + 2),
 
@@ -132,28 +147,51 @@ class UserHomePage extends StatelessWidget {
                               // route — that used to create a duplicate,
                               // separately-stateful instance of the same
                               // destination.
-                              onTap: () => NavigationShellController.maybeOf(context)
-                                  ?.selectTab(AppTab.flowMode.index),
+                              onTap: () => NavigationShellController.maybeOf(
+                                context,
+                              )?.selectTab(AppTab.flowMode.index),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            FeatureCard(
+                              icon: Icons.change_history_rounded,
+                              title: 'Polyrhythm Lab',
+                              subtitle:
+                                  'Poliritmie animate e sincronizzate: guarda e senti il ritmo, non contarlo, non pensarlo, vivilo.',
+                              accentColor: AppColors.secondary,
+                              onTap: () => NavigationShellController.maybeOf(
+                                context,
+                              )?.selectTab(AppTab.polyrhythmLab.index),
                             ),
                             const SizedBox(height: AppSpacing.md),
 
                             FeatureCard(
                               icon: Icons.menu_book_rounded,
                               title: 'Sheet Mode',
-                              subtitle: 'Sfoglia le tue partiture su un vero pentagramma a cinque linee.',
+                              subtitle:
+                                  'Sfoglia le tue partiture su un vero pentagramma a cinque linee.',
                               accentColor: AppColors.secondary,
                               isAvailable: false,
-                              onTap: () => Toast.show(ToastType.warning, 'Funzionalità in arrivo!', context),
+                              onTap: () => Toast.show(
+                                ToastType.warning,
+                                'Funzionalità in arrivo!',
+                                context,
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.md),
 
                             FeatureCard(
                               icon: Icons.edit_note_rounded,
                               title: 'Composer Mode',
-                              subtitle: 'Componi, riproduci e salva le tue melodie su un vero pentagramma.',
+                              subtitle:
+                                  'Componi, riproduci e salva le tue melodie su un vero pentagramma.',
                               accentColor: AppColors.tertiary,
                               isAvailable: false,
-                              onTap: () => Toast.show(ToastType.warning, 'Funzionalità in arrivo!', context),
+                              onTap: () => Toast.show(
+                                ToastType.warning,
+                                'Funzionalità in arrivo!',
+                                context,
+                              ),
                             ),
 
                             const SizedBox(height: AppSpacing.xxxl - 4),
@@ -161,7 +199,10 @@ class UserHomePage extends StatelessWidget {
                             // Intestazione sezione "Prossimamente"
                             Text(
                               'Prossimamente',
-                              style: textTheme.headlineSmall?.copyWith(fontSize: 18, letterSpacing: 0.5),
+                              style: textTheme.headlineSmall?.copyWith(
+                                fontSize: 18,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                             const SizedBox(height: AppSpacing.sm + 2),
 
@@ -191,10 +232,12 @@ class UserHomePage extends StatelessWidget {
     if (columns == 1) {
       return Column(
         children: comingSoonFeatures
-            .map((f) => Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: _buildComingSoonCard(context, f),
-                ))
+            .map(
+              (f) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: _buildComingSoonCard(context, f),
+              ),
+            )
             .toList(),
       );
     }
@@ -209,11 +252,15 @@ class UserHomePage extends StatelessWidget {
         crossAxisSpacing: AppSpacing.md,
         childAspectRatio: 2.3,
       ),
-      itemBuilder: (context, index) => _buildComingSoonCard(context, comingSoonFeatures[index]),
+      itemBuilder: (context, index) =>
+          _buildComingSoonCard(context, comingSoonFeatures[index]),
     );
   }
 
-  Widget _buildComingSoonCard(BuildContext context, Map<String, String> feature) {
+  Widget _buildComingSoonCard(
+    BuildContext context,
+    Map<String, String> feature,
+  ) {
     final textTheme = Theme.of(context).textTheme;
 
     return ClipRRect(
@@ -224,8 +271,13 @@ class UserHomePage extends StatelessWidget {
             opacity: 0.55,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md + 2, vertical: AppSpacing.md),
-              decoration: AppTheme.glassCardDecoration(borderRadius: AppRadius.lg),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md + 2,
+                vertical: AppSpacing.md,
+              ),
+              decoration: AppTheme.glassCardDecoration(
+                borderRadius: AppRadius.lg,
+              ),
               child: Row(
                 children: [
                   Container(
@@ -236,7 +288,10 @@ class UserHomePage extends StatelessWidget {
                       color: AppColors.textMuted.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: Text(feature['icon']!, style: const TextStyle(fontSize: 22)),
+                    child: Text(
+                      feature['icon']!,
+                      style: const TextStyle(fontSize: 22),
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -255,7 +310,9 @@ class UserHomePage extends StatelessWidget {
                           feature['description']!,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -270,14 +327,20 @@ class UserHomePage extends StatelessWidget {
             top: AppSpacing.sm,
             right: AppSpacing.sm,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xxs),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xxs,
+              ),
               decoration: BoxDecoration(
                 color: AppColors.textPrimary.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Text(
                 'Coming Soon',
-                style: textTheme.labelSmall?.copyWith(color: Colors.white, fontSize: 9),
+                style: textTheme.labelSmall?.copyWith(
+                  color: Colors.white,
+                  fontSize: 9,
+                ),
               ),
             ),
           ),

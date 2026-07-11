@@ -34,6 +34,7 @@ class AudioPlayerPool {
   final int size;
   final List<AudioPlayer> _pool = [];
   int _nextIndex = 0;
+  double _volume = 1.0;
 
   AudioPlayerPool({required this.assetPath, this.size = 3}) {
     for (int i = 0; i < size; i++) {
@@ -52,6 +53,16 @@ class AudioPlayerPool {
     player.stop();
     player.resume();
     _nextIndex = (_nextIndex + 1) % size;
+  }
+
+  /// Sets playback volume (0.0-1.0) applied to every pooled player —
+  /// used by callers that expose a master-volume control (e.g. Polyrhythm
+  /// Lab's [AudioScheduler]). No-op for pools that never call it.
+  void setVolume(double volume) {
+    _volume = volume.clamp(0.0, 1.0);
+    for (final player in _pool) {
+      player.setVolume(_volume);
+    }
   }
 
   void dispose() {

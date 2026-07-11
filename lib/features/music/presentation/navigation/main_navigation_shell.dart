@@ -4,13 +4,14 @@ import '../../../../core/navigation/shell_destination.dart';
 import '../../../../core/navigation/shell_nav_item.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../pages/flow_mode_page.dart';
+import '../pages/polyrhythm_lab_page.dart';
 import '../pages/user_home_page.dart';
 
 /// The app's root destinations, in the same order as
 /// [MainNavigationShell.destinations] — used instead of raw indices so
 /// callers (e.g. login routing, or a page asking the shell to switch tabs)
 /// stay readable and can't drift out of sync with the destination list.
-enum AppTab { home, flowMode }
+enum AppTab { home, flowMode, polyrhythmLab }
 
 /// Assembles the app's root [NavigationShell]. [destinations] are the real,
 /// navigable pages backing the shell's [IndexedStack]; [navItems] is the
@@ -35,6 +36,12 @@ class MainNavigationShell extends StatelessWidget {
       selectedIcon: Icons.loop_rounded,
       page: FlowModePage(),
     ),
+    ShellDestination(
+      label: 'Polyrhythm Lab',
+      icon: Icons.change_history_outlined,
+      selectedIcon: Icons.change_history_rounded,
+      page: PolyrhythmLabPage(),
+    ),
   ];
 
   static const List<ShellNavItem> navItems = [
@@ -53,6 +60,13 @@ class MainNavigationShell extends StatelessWidget {
       destinationIndex: 1,
     ),
     ShellNavItem(
+      label: 'Polyrhythm Lab',
+      subtitle: 'Poliritmie animate e sincronizzate',
+      icon: Icons.change_history_outlined,
+      selectedIcon: Icons.change_history_rounded,
+      destinationIndex: 2,
+    ),
+    ShellNavItem(
       label: 'Rhythm Generator',
       subtitle: 'Letture sul pentagramma',
       icon: Icons.music_note_rounded,
@@ -66,11 +80,6 @@ class MainNavigationShell extends StatelessWidget {
       label: 'Composer Mode',
       subtitle: 'Componi le tue melodie',
       icon: Icons.edit_note_rounded,
-    ),
-    ShellNavItem(
-      label: 'Polyrhythms',
-      subtitle: 'Allenamento poliritmico',
-      icon: Icons.group_work_rounded,
     ),
     ShellNavItem(
       label: 'Ear Training',

@@ -8,19 +8,23 @@ import 'shell_visibility.dart';
 /// rather than every destination page re-deriving "am I on a small screen"
 /// on its own.
 class ShellMenuButton extends StatelessWidget {
-  const ShellMenuButton({super.key});
+  final Color color;
+
+  const ShellMenuButton({super.key, this.color = AppColors.textPrimary});
 
   /// Returns the button, or `null` if the shell currently has no drawer.
-  static Widget? maybe(BuildContext context) {
+  /// [color] lets dark-canvas destinations (e.g. Polyrhythm Lab) keep the
+  /// hamburger legible instead of the default dark-on-light icon color.
+  static Widget? maybe(BuildContext context, {Color color = AppColors.textPrimary}) {
     final openDrawer = NavigationShellController.maybeOf(context)?.openDrawer;
-    return openDrawer == null ? null : const ShellMenuButton();
+    return openDrawer == null ? null : ShellMenuButton(color: color);
   }
 
   @override
   Widget build(BuildContext context) {
     final openDrawer = NavigationShellController.maybeOf(context)!.openDrawer!;
     return IconButton(
-      icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 26),
+      icon: Icon(Icons.menu_rounded, color: color, size: 26),
       tooltip: 'Menu',
       onPressed: openDrawer,
     );
