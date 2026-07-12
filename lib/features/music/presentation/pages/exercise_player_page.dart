@@ -38,7 +38,9 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
     _exercise = widget.exercise;
     _playbackService = RhythmPlaybackService();
     _playbackService.addListener(_onPlaybackChanged);
-    _playbackService.updateSettings(bpm: _exercise.bpm, soundInstrument: 'stick');
+    // Suono note di default silenzioso: l'esercizio di lettura si esegue
+    // sul metronomo; bacchetta/rullante si attivano dal menù a tendina.
+    _playbackService.updateSettings(bpm: _exercise.bpm, soundInstrument: 'silent');
     _playbackService.preparePlayback(_exercise.measures);
   }
 
@@ -117,7 +119,13 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
     if (_exporting) return;
     setState(() => _exporting = true);
     try {
-      await _pdfExporter.export(_exercise);
+      // Dialog modale di attesa: la rasterizzazione dei sistemi e
+      // l'assemblaggio del PDF richiedono qualche secondo.
+      await runWithBusyDialog(
+        context,
+        message: 'Generazione PDF…',
+        task: () => _pdfExporter.export(_exercise),
+      );
     } catch (_) {
       if (mounted) {
         Toast.show(ToastType.error, 'Esportazione PDF non riuscita', context);
@@ -159,7 +167,13 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
           const SizedBox(width: AppSpacing.xxs),
         ],
       ),
+      // BoxConstraints.expand: la SingleChildScrollView si restringe al
+      // proprio contenuto, e senza vincolo il Container (e quindi il
+      // gradiente) si restringerebbe con lei — con poche battute su tablet
+      // la pagina "finiva" a metà schermo lasciando bianco sotto i
+      // controlli. Così il gradiente copre sempre l'intero viewport.
       body: Container(
+        constraints: const BoxConstraints.expand(),
         decoration: AppTheme.backgroundGradient,
         child: SafeArea(
           child: SingleChildScrollView(
@@ -188,6 +202,7 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
                           activeMeasureIndex: _playbackService.currentMeasureIndex,
                           activeElementIndex: _playbackService.currentElementIndex,
                           activeTripletIndex: _playbackService.currentTripletIndex,
+                          singleLine: true,
                         ),
                       ),
                     ),
@@ -203,7 +218,7 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                       child: OutlinedButton.icon(
                         onPressed: _regenerate,
-                        icon: const Icon(Icons.casino_rounded, size: 20),
+                        icon: const Icon(Icons.refresh_rounded, size: 20),
                         label: const Text('Rigenera con le stesse impostazioni'),
                       ),
                     ),
@@ -220,28 +235,71 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
 
   Widget _buildMetronomeToggle() {
     final bool enabled = _playbackService.isMetronomeEnabled;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.xs,
       children: [
-        Icon(
-          Icons.av_timer_rounded,
-          size: 18,
-          color: enabled ? AppColors.primary : AppColors.textMuted,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.av_timer_rounded,
+              size: 18,
+              color: enabled ? AppColors.primary : AppColors.textMuted,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'Metronomo',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color:
+                        enabled ? AppColors.textPrimary : AppColors.textMuted,
+                  ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Switch(
+              value: enabled,
+              onChanged: (value) =>
+                  _playbackService.updateSettings(isMetronomeEnabled: value),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          'Metronomo',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: enabled ? AppColors.textPrimary : AppColors.textMuted,
-              ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Switch(
-          value: enabled,
-          onChanged: (value) =>
-              _playbackService.updateSettings(isMetronomeEnabled: value),
-        ),
+        _buildSoundInstrumentDropdown(),
       ],
+    );
+  }
+
+  /// Lo stesso menù a tendina del suono delle note usato in Flow Mode:
+  /// silenzio (default), bacchetta o rullante.
+  Widget _buildSoundInstrumentDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.surfaceBorder, width: 1.5),
+      ),
+      child: DropdownButton<String>(
+        value: _playbackService.soundInstrument,
+        dropdownColor: Colors.white,
+        underline: const SizedBox(),
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+        ),
+        items: const [
+          DropdownMenuItem(value: 'silent', child: Text('🔇 Silent')),
+          DropdownMenuItem(value: 'snare', child: Text('🥁 Snare')),
+          DropdownMenuItem(value: 'stick', child: Text('🥢 Stick')),
+        ],
+        onChanged: (v) {
+          if (v != null) {
+            _playbackService.updateSettings(soundInstrument: v);
+          }
+        },
+      ),
     );
   }
 

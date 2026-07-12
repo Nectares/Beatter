@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../models/rhythm_element.dart';
+import 'figuration_images.dart';
 import 'staff_geometry.dart' as geometry;
 
 /// Draws a real 5-line treble-clef staff with note heads, stems, flags,
@@ -20,6 +21,16 @@ class MusicStaffPainter extends CustomPainter {
   /// signature only on the first system, like engraved scores.
   final bool showTimeSignature;
 
+  /// Notazione ritmica a linea singola (Sheet Mode): una sola riga al posto
+  /// del pentagramma, teste appoggiate sulla riga, niente chiave di violino
+  /// né tagli addizionali.
+  final bool singleLine;
+
+  /// Epoca della cache dei glifi al momento della costruzione: quando nuovi
+  /// glifi finiscono di caricare, il painter successivo la vede diversa e
+  /// `shouldRepaint` scatta.
+  final int _glyphEpoch = FigurationImages.instance.epoch;
+
   static const double lineSpacing = geometry.lineSpacing;
   static const double noteWidth = geometry.noteWidth;
   static const double noteHeight = geometry.noteHeight;
@@ -30,6 +41,7 @@ class MusicStaffPainter extends CustomPainter {
     required this.activeElementIndex,
     this.activeTripletIndex,
     this.showTimeSignature = true,
+    this.singleLine = false,
   });
 
   @override
@@ -46,15 +58,23 @@ class MusicStaffPainter extends CustomPainter {
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
-    // Five staff lines.
-    for (int i = -2; i <= 2; i++) {
-      final y = midY + i * lineSpacing;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+    // Single rhythm line, or the five staff lines.
+    if (singleLine) {
+      canvas.drawLine(Offset(0, midY), Offset(size.width, midY), linePaint);
+    } else {
+      for (int i = -2; i <= 2; i++) {
+        final y = midY + i * lineSpacing;
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+      }
     }
 
     if (measures.isEmpty) return;
 
-    _drawTrebleClef(canvas, geometry.staffLeadingX, midY, lineSpacing);
+    if (singleLine) {
+      _drawPercussionClef(canvas, geometry.staffLeadingX, midY, lineSpacing);
+    } else {
+      _drawTrebleClef(canvas, geometry.staffLeadingX, midY, lineSpacing);
+    }
 
     if (showTimeSignature) {
       final String timeSig = measures.first.timeSignature;
@@ -87,12 +107,30 @@ class MusicStaffPainter extends CustomPainter {
         );
       }
 
+      final double barHalf = singleLine ? 1.4 * lineSpacing : 2 * lineSpacing;
       canvas.drawLine(
-        Offset(measureLayout.endX, midY - 2 * lineSpacing),
-        Offset(measureLayout.endX, midY + 2 * lineSpacing),
+        Offset(measureLayout.endX, midY - barHalf),
+        Offset(measureLayout.endX, midY + barHalf),
         barPaint,
       );
     }
+  }
+
+  /// Chiave di percussione: due barrette verticali piene a cavallo della
+  /// riga ritmica.
+  void _drawPercussionClef(Canvas canvas, double x, double y, double s) {
+    final clefPaint = Paint()
+      ..color = AppColors.textPrimary
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRect(
+      Rect.fromLTRB(x + 14, y - 1.2 * s, x + 17.5, y + 1.2 * s),
+      clefPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTRB(x + 21.5, y - 1.2 * s, x + 25, y + 1.2 * s),
+      clefPaint,
+    );
   }
 
   void _drawTrebleClef(Canvas canvas, double x, double y, double s) {
@@ -189,17 +227,23 @@ class MusicStaffPainter extends CustomPainter {
     switch (element.type) {
       case RhythmElementType.whole:
         {
-          final y = geometry.noteY(element.noteName, midY, spacing);
-          _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          final y =
+              singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
+          if (!singleLine) {
+            _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          }
           _drawNoteHead(canvas, x, y, notePaint, hollow: true);
         }
         break;
 
       case RhythmElementType.half:
         {
-          final y = geometry.noteY(element.noteName, midY, spacing);
+          final y =
+              singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
           final up = geometry.stemsUp(element.noteName);
-          _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          if (!singleLine) {
+            _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          }
           _drawNoteHead(canvas, x, y, notePaint, hollow: true);
           _drawStem(canvas, x, y, spacing, up, stemPaint);
         }
@@ -207,9 +251,12 @@ class MusicStaffPainter extends CustomPainter {
 
       case RhythmElementType.quarter:
         {
-          final y = geometry.noteY(element.noteName, midY, spacing);
+          final y =
+              singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
           final up = geometry.stemsUp(element.noteName);
-          _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          if (!singleLine) {
+            _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          }
           _drawNoteHead(canvas, x, y, notePaint);
           _drawStem(canvas, x, y, spacing, up, stemPaint);
         }
@@ -217,9 +264,12 @@ class MusicStaffPainter extends CustomPainter {
 
       case RhythmElementType.eighth:
         {
-          final y = geometry.noteY(element.noteName, midY, spacing);
+          final y =
+              singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
           final up = geometry.stemsUp(element.noteName);
-          _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          if (!singleLine) {
+            _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          }
           _drawNoteHead(canvas, x, y, notePaint);
           final stemEnd = _drawStem(canvas, x, y, spacing, up, stemPaint);
           _drawFlag(canvas, x, stemEnd, up, 1, stemPaint);
@@ -228,12 +278,30 @@ class MusicStaffPainter extends CustomPainter {
 
       case RhythmElementType.sixteenth:
         {
-          final y = geometry.noteY(element.noteName, midY, spacing);
+          final y =
+              singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
           final up = geometry.stemsUp(element.noteName);
-          _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          if (!singleLine) {
+            _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          }
           _drawNoteHead(canvas, x, y, notePaint);
           final stemEnd = _drawStem(canvas, x, y, spacing, up, stemPaint);
           _drawFlag(canvas, x, stemEnd, up, 2, stemPaint);
+        }
+        break;
+
+      case RhythmElementType.dottedEighth:
+        {
+          final y =
+              singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
+          final up = geometry.stemsUp(element.noteName);
+          if (!singleLine) {
+            _drawLedgerLines(canvas, x, element.noteName, midY, spacing);
+          }
+          _drawNoteHead(canvas, x, y, notePaint);
+          final stemEnd = _drawStem(canvas, x, y, spacing, up, stemPaint);
+          _drawFlag(canvas, x, stemEnd, up, 1, stemPaint);
+          _drawAugmentationDot(canvas, x, y, notePaint);
         }
         break;
 
@@ -249,11 +317,105 @@ class MusicStaffPainter extends CustomPainter {
         _drawEighthRest(canvas, x, midY, spacing, 2, restPaint);
         break;
 
+      case RhythmElementType.dottedEighthRest:
+        {
+          _drawEighthRest(canvas, x, midY, spacing, 1, restPaint);
+          final dotPaint = Paint()
+            ..color = restPaint.color
+            ..style = PaintingStyle.fill;
+          canvas.drawCircle(Offset(x + 8, midY - 0.5 * spacing), 2.0, dotPaint);
+        }
+        break;
+
       case RhythmElementType.triplet:
         _drawTriplet(canvas, x, midY, spacing, element.tripletNotes, isActive,
             activeTripletIndex);
         break;
+
+      case RhythmElementType.beatGroup:
+        {
+          final FigurationGlyph? glyph = element.figurationId != null
+              ? FigurationImages.instance.of(element.figurationId!)
+              : null;
+          if (glyph != null) {
+            _drawFigurationGlyph(
+                canvas, x, midY, spacing, element, glyph, isActive);
+          } else {
+            // Fallback vettoriale: glifo non (ancora) caricato o esercizio
+            // salvato prima dell'introduzione delle figurazioni-immagine.
+            _drawBeatGroup(canvas, x, midY, spacing, element, isActive,
+                activeTripletIndex);
+          }
+        }
+        break;
     }
+  }
+
+  /// Disegna una figurazione da 1/4 come blocco unico: il glifo estratto
+  /// dal PNG omonimo, tinto del colore delle note, alla taglia display
+  /// normalizzata ([FigurationImages.targetHeadWidth]: ogni testa di nota
+  /// esce identica in tutte le figurazioni) e con le teste appoggiate sulla
+  /// riga ritmica (o su C4 in modalità pentagramma). La pausa di semiminima
+  /// da sola resta centrata sulla riga.
+  void _drawFigurationGlyph(
+    Canvas canvas,
+    double x,
+    double midY,
+    double spacing,
+    RhythmElement element,
+    FigurationGlyph glyph,
+    bool isActive,
+  ) {
+    final bool restOnly = element.groupRests.every((r) => r);
+
+    final double w = glyph.displayWidth;
+    final double h = glyph.displayHeight;
+
+    // Le teste stanno sul fondo dei glifi e sono alte ~2/3 della loro
+    // larghezza: così il centro testa cade esattamente sulla riga.
+    final double anchorY =
+        singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
+    final double headHalf = FigurationImages.targetHeadWidth / 3;
+    final double bottom = restOnly ? midY + h / 2 : anchorY + headHalf;
+
+    final Color tint = isActive
+        ? AppColors.primary
+        : (restOnly ? AppColors.textSecondary : AppColors.textPrimary);
+
+    final paint = Paint()
+      ..colorFilter = ColorFilter.mode(tint, BlendMode.srcIn)
+      ..filterQuality = FilterQuality.medium;
+
+    // In modalità pentagramma le teste sono su C4, fuori dalle cinque
+    // righe: senza taglio addizionale sembrerebbero fluttuare.
+    if (!singleLine &&
+        !restOnly &&
+        geometry.ledgerLinesNeeded(element.noteName) > 0) {
+      final ledgerPaint = Paint()
+        ..color = AppColors.textMuted.withValues(alpha: 0.7)
+        ..strokeWidth = 1.2;
+      canvas.drawLine(
+        Offset(x - w / 2 - 4, anchorY),
+        Offset(x + w / 2 + 4, anchorY),
+        ledgerPaint,
+      );
+    }
+
+    canvas.drawImageRect(
+      glyph.image,
+      Rect.fromLTWH(
+          0, 0, glyph.image.width.toDouble(), glyph.image.height.toDouble()),
+      Rect.fromLTWH(x - w / 2, bottom - h, w, h),
+      paint,
+    );
+  }
+
+  /// Punto di valore accanto alla testa della nota (croma puntata).
+  void _drawAugmentationDot(Canvas canvas, double x, double y, Paint paint) {
+    final dotPaint = Paint()
+      ..color = paint.color
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(x + noteWidth / 2 + 5, y - 2), 2.0, dotPaint);
   }
 
   /// Draws short horizontal ledger-line strokes above/below the staff for
@@ -277,7 +439,8 @@ class MusicStaffPainter extends CustomPainter {
     }
   }
 
-  void _drawNoteHead(Canvas canvas, double x, double y, Paint paint, {bool hollow = false}) {
+  void _drawNoteHead(Canvas canvas, double x, double y, Paint paint,
+      {bool hollow = false, double scale = 1.0}) {
     canvas.save();
     canvas.translate(x, y);
     canvas.rotate(-20 * math.pi / 180);
@@ -288,7 +451,10 @@ class MusicStaffPainter extends CustomPainter {
           ..strokeWidth = 1.5)
         : paint;
     canvas.drawOval(
-      Rect.fromCenter(center: Offset.zero, width: noteWidth, height: noteHeight),
+      Rect.fromCenter(
+          center: Offset.zero,
+          width: noteWidth * scale,
+          height: noteHeight * scale),
       headPaint,
     );
     canvas.restore();
@@ -479,12 +645,221 @@ class MusicStaffPainter extends CustomPainter {
     );
   }
 
+  /// Disegna un [RhythmElementType.beatGroup]: un gruppo che riempie
+  /// esattamente un battito (terzine variate, quintine, sestine, biscrome,
+  /// terzine con membri suddivisi). Generalizza [_drawTriplet]:
+  /// - membri equispaziati attorno alla x dell'elemento;
+  /// - se il gruppo contiene pause, niente travatura: note con codette e
+  ///   glifi di pausa singoli (come nelle incisioni reali di terzine con
+  ///   pause);
+  /// - altrimenti travatura principale unica più segmenti di seconda/terza
+  ///   travatura tra membri adiacenti di pari suddivisione;
+  /// - staffetta con numero ([RhythmElement.tupletLabel]) se presente.
+  void _drawBeatGroup(
+    Canvas canvas,
+    double centerX,
+    double midY,
+    double spacing,
+    RhythmElement element,
+    bool isActive,
+    int? activeTripletIndex,
+  ) {
+    final int count = element.groupDurations.length;
+    if (count == 0) return;
+
+    final double y =
+        singleLine ? midY : geometry.noteY(element.noteName, midY, spacing);
+    final double stemLen = spacing * 2.8;
+
+    // Battito semplice (semiminima o pausa di semiminima): glifi standard.
+    if (count == 1) {
+      if (element.groupRests.first) {
+        final restPaint = Paint()
+          ..color = isActive ? AppColors.tertiary : AppColors.textSecondary
+          ..strokeWidth = 2.0
+          ..style = PaintingStyle.stroke;
+        _drawQuarterRest(canvas, centerX, midY, spacing, restPaint);
+      } else {
+        final notePaint = Paint()
+          ..color = isActive ? AppColors.primary : AppColors.textPrimary
+          ..style = PaintingStyle.fill;
+        final stemPaint = Paint()
+          ..color = notePaint.color
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke;
+        if (!singleLine) {
+          _drawLedgerLines(canvas, centerX, element.noteName, midY, spacing);
+        }
+        _drawNoteHead(canvas, centerX, y, notePaint);
+        _drawStem(canvas, centerX, y, spacing,
+            geometry.stemsUp(element.noteName), stemPaint);
+      }
+      return;
+    }
+    final double halfWidth = ((count - 1) * 6.5).clamp(16.0, 28.0).toDouble();
+    final double step = count > 1 ? (halfWidth * 2) / (count - 1) : 0.0;
+
+    // Livello di travatura/codetta dal valore del membro: crome (anche di
+    // terzina) 1, semicrome/quintine/sestine 2, biscrome 3.
+    int levelOf(double d) => d > 0.26 ? 1 : (d > 0.13 ? 2 : 3);
+
+    final bool hasRests = element.groupRests.contains(true);
+
+    // Nei gruppi fitti (sestine, biscrome) le teste piene si toccherebbero:
+    // vengono rimpicciolite quanto basta a restare distinte, e il gambo
+    // segue il bordo destro della testa ridotta.
+    final double headScale =
+        count > 1 ? (step / (noteWidth + 1)).clamp(0.6, 1.0).toDouble() : 1.0;
+
+    final List<double> xs =
+        List.generate(count, (i) => centerX - halfWidth + step * i);
+    final List<double> stemXs =
+        List.generate(count, (i) => xs[i] + (noteWidth * headScale) / 2 - 1);
+
+    for (int i = 0; i < count; i++) {
+      final bool isThisNoteActive = isActive && activeTripletIndex == i;
+
+      if (element.groupRests[i]) {
+        final restPaint = Paint()
+          ..color = isThisNoteActive ? AppColors.tertiary : AppColors.textSecondary
+          ..strokeWidth = 1.6
+          ..style = PaintingStyle.stroke;
+        canvas.save();
+        canvas.translate(xs[i], 0);
+        canvas.scale(0.75, 0.75);
+        _drawEighthRest(canvas, 0, midY / 0.75, spacing,
+            levelOf(element.groupDurations[i]), restPaint);
+        canvas.restore();
+        continue;
+      }
+
+      final notePaint = Paint()
+        ..color = isThisNoteActive ? AppColors.primary : AppColors.textPrimary
+        ..style = PaintingStyle.fill;
+
+      final stemPaint = Paint()
+        ..color = isThisNoteActive
+            ? AppColors.primary
+            : (isActive
+                ? AppColors.primary.withValues(alpha: 0.5)
+                : AppColors.textPrimary)
+        ..strokeWidth = 1.3
+        ..style = PaintingStyle.stroke;
+
+      _drawNoteHead(canvas, xs[i], y, notePaint, scale: headScale);
+      canvas.drawLine(
+        Offset(stemXs[i], y),
+        Offset(stemXs[i], y - stemLen),
+        stemPaint,
+      );
+
+      // Senza travatura comune, ogni nota porta le proprie codette.
+      if (hasRests) {
+        _drawFlag(canvas, xs[i], Offset(stemXs[i], y - stemLen), true,
+            levelOf(element.groupDurations[i]), stemPaint);
+      }
+    }
+
+    final double beamY = y - stemLen;
+
+    if (!hasRests) {
+      final beamPaint = Paint()
+        ..color = isActive ? AppColors.primary : AppColors.textPrimary
+        ..strokeWidth = 3.0
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.square;
+
+      // Travatura principale unica sull'intero gruppo.
+      canvas.drawLine(
+        Offset(stemXs.first, beamY),
+        Offset(stemXs.last, beamY),
+        beamPaint,
+      );
+
+      // Seconda/terza travatura tra membri adiacenti che condividono la
+      // suddivisione più fitta.
+      for (int level = 2; level <= 3; level++) {
+        final double levelY = beamY + (level - 1) * 4.5;
+        for (int i = 0; i < count - 1; i++) {
+          if (levelOf(element.groupDurations[i]) >= level &&
+              levelOf(element.groupDurations[i + 1]) >= level) {
+            canvas.drawLine(
+              Offset(stemXs[i], levelY),
+              Offset(stemXs[i + 1], levelY),
+              beamPaint,
+            );
+          }
+        }
+      }
+    }
+
+    if (element.tupletLabel != null) {
+      _drawTupletBracket(
+        canvas,
+        xFrom: xs.first - 4,
+        xTo: xs.last + noteWidth / 2 + 7,
+        bracketY: beamY - 8.0 - (hasRests ? 6.0 : 0.0),
+        label: '${element.tupletLabel}',
+        isActive: isActive,
+      );
+    }
+  }
+
+  /// Staffetta orizzontale con numero centrato (3, 5, 6…) sopra un gruppo
+  /// irregolare — lo stesso stile della terzina classica.
+  void _drawTupletBracket(
+    Canvas canvas, {
+    required double xFrom,
+    required double xTo,
+    required double bracketY,
+    required String label,
+    required bool isActive,
+  }) {
+    final bracketPaint = Paint()
+      ..color = isActive ? AppColors.primary : AppColors.textSecondary
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawLine(Offset(xFrom, bracketY), Offset(xTo, bracketY), bracketPaint);
+    canvas.drawLine(
+        Offset(xFrom, bracketY), Offset(xFrom, bracketY + 4), bracketPaint);
+    canvas.drawLine(Offset(xTo, bracketY), Offset(xTo, bracketY + 4), bracketPaint);
+
+    final textStyle = TextStyle(
+      color: isActive ? AppColors.primary : AppColors.textSecondary,
+      fontSize: 10,
+      fontWeight: FontWeight.bold,
+    );
+
+    final textPainter = TextPainter(
+      text: TextSpan(text: label, style: textStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final double centerX = (xFrom + xTo) / 2;
+
+    // Blot out the bracket line behind the number (see _drawTriplet).
+    final bgPaint = Paint()
+      ..color = AppColors.surface
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset(centerX, bracketY), width: 10, height: 10),
+      bgPaint,
+    );
+
+    textPainter.paint(
+      canvas,
+      Offset(centerX - textPainter.width / 2, bracketY - textPainter.height / 2),
+    );
+  }
+
   @override
   bool shouldRepaint(covariant MusicStaffPainter oldDelegate) {
     return oldDelegate.activeMeasureIndex != activeMeasureIndex ||
         oldDelegate.activeElementIndex != activeElementIndex ||
         oldDelegate.activeTripletIndex != activeTripletIndex ||
         oldDelegate.showTimeSignature != showTimeSignature ||
-        oldDelegate.measures != measures;
+        oldDelegate.measures != measures ||
+        oldDelegate._glyphEpoch != _glyphEpoch;
   }
 }

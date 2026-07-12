@@ -75,7 +75,10 @@ enum NoteDuration {
       case RhythmElementType.quarterRest:
       case RhythmElementType.eighthRest:
       case RhythmElementType.sixteenthRest:
+      case RhythmElementType.dottedEighth:
+      case RhythmElementType.dottedEighthRest:
       case RhythmElementType.triplet:
+      case RhythmElementType.beatGroup:
         return NoteDuration.quarter;
     }
   }

@@ -98,6 +98,13 @@ class RhythmExercise {
         'noteName': element.noteName,
         if (element.type == RhythmElementType.triplet)
           'tripletNotes': element.tripletNotes,
+        if (element.type == RhythmElementType.beatGroup) ...{
+          'groupDurations': element.groupDurations,
+          'groupRests': element.groupRests,
+          if (element.tupletLabel != null) 'tupletLabel': element.tupletLabel,
+          if (element.figurationId != null)
+            'figurationId': element.figurationId,
+        },
       };
 
   static RhythmElement _elementFromJson(Map<String, dynamic> json) =>
@@ -107,5 +114,12 @@ class RhythmExercise {
         noteName: json['noteName'] as String? ?? 'C4',
         tripletNotes: (json['tripletNotes'] as List?)?.cast<String>() ??
             const ['B4', 'B4', 'B4'],
+        groupDurations: (json['groupDurations'] as List?)
+                ?.map((d) => (d as num).toDouble())
+                .toList() ??
+            const [],
+        groupRests: (json['groupRests'] as List?)?.cast<bool>() ?? const [],
+        tupletLabel: json['tupletLabel'] as int?,
+        figurationId: json['figurationId'] as String?,
       );
 }

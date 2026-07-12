@@ -1,42 +1,41 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
-import 'rhythm_figures.dart';
+import 'beat_figurations.dart';
 
-/// A rhythm figure paired with how often the generator should pick it,
-/// relative to the other figures in the same preset.
-class WeightedFigure {
-  final RhythmFigure figure;
+/// Una figurazione (per id, vedi [kBeatFigurations]) con la frequenza
+/// relativa con cui il generatore deve sceglierla nello stesso preset.
+class WeightedFiguration {
+  final String figurationId;
   final int weight;
 
-  const WeightedFigure(this.figure, this.weight);
+  const WeightedFiguration(this.figurationId, this.weight);
+
+  BeatFiguration get figuration => figurationById(figurationId);
 }
 
-/// A code-defined difficulty preset: which figures an exercise may contain
-/// and how they're weighted. Purely declarative — the generation logic in
-/// `RhythmEngine` never mentions a specific difficulty.
+/// A code-defined difficulty preset: quali figurazioni un esercizio può
+/// contenere e con che pesi. Puramente dichiarativo — la logica di
+/// generazione in `RhythmEngine` non nomina mai una difficoltà specifica.
 class DifficultyPreset {
   final String id;
   final String label;
   final String description;
-  final List<WeightedFigure> figures;
+  final List<WeightedFiguration> figurations;
   final Color accentColor;
 
   const DifficultyPreset({
     required this.id,
     required this.label,
     required this.description,
-    required this.figures,
+    required this.figurations,
     required this.accentColor,
   });
-
-  List<RhythmFigure> get allowedFigures =>
-      figures.map((w) => w.figure).toList();
 }
 
 /// ─────────────────────────────────────────────────────────────────────────
 /// THE single place to tune what each difficulty is allowed to generate.
-/// Add/remove figures or adjust weights here — the generator, the UI and
-/// persistence all pick the change up automatically.
+/// Ogni battito è sempre una figurazione reale da 1/4 (mai una croma o una
+/// semicroma isolata), oppure una semiminima/minima/semibreve semplice.
 /// ─────────────────────────────────────────────────────────────────────────
 const List<DifficultyPreset> kDifficultyPresets = [
   DifficultyPreset(
@@ -44,64 +43,106 @@ const List<DifficultyPreset> kDifficultyPresets = [
     label: 'Easy',
     description: 'Semibrevi, minime, semiminime e pause di semiminima.',
     accentColor: AppColors.success,
-    figures: [
-      WeightedFigure(RhythmFigure.whole, 1),
-      WeightedFigure(RhythmFigure.half, 3),
-      WeightedFigure(RhythmFigure.quarter, 6),
-      WeightedFigure(RhythmFigure.quarterRest, 2),
+    figurations: [
+      WeightedFiguration('whole', 1),
+      WeightedFiguration('half', 3),
+      WeightedFiguration('A1', 6),
+      WeightedFiguration('A2', 2),
     ],
   ),
   DifficultyPreset(
     id: 'intermediate',
     label: 'Intermediate',
-    description: 'Aggiunge le crome e le pause di croma.',
+    description: 'Aggiunge le coppie di crome e la pausa di croma.',
     accentColor: AppColors.tertiary,
-    figures: [
-      WeightedFigure(RhythmFigure.half, 2),
-      WeightedFigure(RhythmFigure.quarter, 5),
-      WeightedFigure(RhythmFigure.eighth, 5),
-      WeightedFigure(RhythmFigure.quarterRest, 2),
-      WeightedFigure(RhythmFigure.eighthRest, 1),
+    figurations: [
+      WeightedFiguration('half', 2),
+      WeightedFiguration('A1', 5),
+      WeightedFiguration('A2', 2),
+      WeightedFiguration('B1', 5),
+      WeightedFiguration('B2', 2),
     ],
   ),
   DifficultyPreset(
     id: 'medium',
     label: 'Medium',
-    description: 'Aggiunge le semicrome per pattern più fitti.',
+    description: 'Aggiunge le figurazioni di semicrome e la croma puntata.',
     accentColor: AppColors.warning,
-    figures: [
-      WeightedFigure(RhythmFigure.quarter, 4),
-      WeightedFigure(RhythmFigure.eighth, 5),
-      WeightedFigure(RhythmFigure.sixteenth, 3),
-      WeightedFigure(RhythmFigure.quarterRest, 1),
-      WeightedFigure(RhythmFigure.eighthRest, 2),
+    figurations: [
+      WeightedFiguration('A1', 3),
+      WeightedFiguration('A2', 1),
+      WeightedFiguration('B1', 4),
+      WeightedFiguration('B2', 2),
+      WeightedFiguration('C1', 3),
+      WeightedFiguration('C2', 3),
+      WeightedFiguration('C3', 3),
+      WeightedFiguration('C5', 2),
+      WeightedFiguration('C6', 1),
+      WeightedFiguration('C9', 1),
     ],
   ),
   DifficultyPreset(
     id: 'hard',
     label: 'Hard',
-    description: 'Terzine, pause di semicroma e sincopi.',
+    description: 'Sincopi, terzine e pause interne al battito.',
     accentColor: AppColors.secondary,
-    figures: [
-      WeightedFigure(RhythmFigure.quarter, 2),
-      WeightedFigure(RhythmFigure.eighth, 5),
-      WeightedFigure(RhythmFigure.sixteenth, 4),
-      WeightedFigure(RhythmFigure.eighthTriplet, 3),
-      WeightedFigure(RhythmFigure.eighthRest, 2),
-      WeightedFigure(RhythmFigure.sixteenthRest, 2),
+    figurations: [
+      WeightedFiguration('A1', 2),
+      WeightedFiguration('B1', 3),
+      WeightedFiguration('B2', 2),
+      WeightedFiguration('C1', 2),
+      WeightedFiguration('C2', 2),
+      WeightedFiguration('C3', 2),
+      WeightedFiguration('C4', 3),
+      WeightedFiguration('C5', 2),
+      WeightedFiguration('C7', 2),
+      WeightedFiguration('C8', 1),
+      WeightedFiguration('C9', 1),
+      WeightedFiguration('C10', 2),
+      WeightedFiguration('C11', 2),
+      WeightedFiguration('C12', 1),
+      WeightedFiguration('D1', 3),
+      WeightedFiguration('D2', 1),
+      WeightedFiguration('D3', 1),
+      WeightedFiguration('D4', 1),
     ],
   ),
   DifficultyPreset(
     id: 'hardcore',
     label: 'Hardcore',
-    description: 'Densità massima: semicrome, terzine e pause ovunque.',
+    description:
+        'Densità massima: quintine, sestine, biscrome e terzine variate.',
     accentColor: AppColors.error,
-    figures: [
-      WeightedFigure(RhythmFigure.eighth, 3),
-      WeightedFigure(RhythmFigure.sixteenth, 6),
-      WeightedFigure(RhythmFigure.eighthTriplet, 4),
-      WeightedFigure(RhythmFigure.eighthRest, 2),
-      WeightedFigure(RhythmFigure.sixteenthRest, 3),
+    figurations: [
+      WeightedFiguration('B1', 2),
+      WeightedFiguration('C1', 3),
+      WeightedFiguration('C2', 2),
+      WeightedFiguration('C3', 2),
+      WeightedFiguration('C4', 3),
+      WeightedFiguration('C5', 1),
+      WeightedFiguration('C7', 2),
+      WeightedFiguration('C8', 2),
+      WeightedFiguration('C10', 2),
+      WeightedFiguration('C11', 2),
+      WeightedFiguration('C12', 2),
+      WeightedFiguration('D1', 2),
+      WeightedFiguration('D2', 1),
+      WeightedFiguration('D3', 1),
+      WeightedFiguration('D4', 1),
+      WeightedFiguration('D5', 1),
+      WeightedFiguration('D6', 1),
+      WeightedFiguration('D7', 1),
+      WeightedFiguration('E1', 2),
+      WeightedFiguration('F1', 2),
+      WeightedFiguration('G1', 1),
+      WeightedFiguration('H1', 2),
+      WeightedFiguration('H2', 2),
+      WeightedFiguration('L1', 1),
+      WeightedFiguration('L2', 1),
+      WeightedFiguration('L3', 1),
+      WeightedFiguration('L4', 1),
+      WeightedFiguration('L5', 1),
+      WeightedFiguration('L6', 1),
     ],
   ),
 ];

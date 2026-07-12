@@ -83,6 +83,7 @@ flutter:
     - assets/audio/snare.wav
     - assets/audio/notes/
     - assets/audio/polyrhythm/
+    - assets/audio/figurazioni_quarti_png/
     - assets/logos/logo_beatter.png
     - assets/icon/
 

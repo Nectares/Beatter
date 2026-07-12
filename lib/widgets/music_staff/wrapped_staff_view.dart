@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/rhythm_element.dart';
+import 'figuration_images.dart';
 import 'music_staff_painter.dart';
 import 'staff_geometry.dart' as geometry;
 
@@ -18,6 +19,20 @@ class WrappedStaffView extends StatelessWidget {
   final int? activeTripletIndex;
   final double systemHeight;
 
+  /// Notazione ritmica a linea singola (Sheet Mode).
+  final bool singleLine;
+
+  /// Sopra questa larghezza (tablet/desktop) ogni riga punta a
+  /// [_tabletMaxMeasures] misure, ma mai a costo di rimpicciolire le note
+  /// oltre [_minSystemScale]: se non ci stanno, la riga ne prende meno.
+  static const double _tabletBreakpoint = 600;
+  static const int _tabletMaxMeasures = 4;
+
+  /// Scala minima accettabile per le note: una riga non viene mai compressa
+  /// sotto questo fattore (tranne il caso limite inevitabile di una singola
+  /// misura più larga dell'intero budget, che resta comunque ≥ 1 per riga).
+  static const double _minSystemScale = 0.65;
+
   const WrappedStaffView({
     super.key,
     required this.measures,
@@ -25,25 +40,42 @@ class WrappedStaffView extends StatelessWidget {
     this.activeElementIndex = -1,
     this.activeTripletIndex,
     this.systemHeight = 130,
+    this.singleLine = false,
   });
 
   @override
   Widget build(BuildContext context) {
     if (measures.isEmpty) return const SizedBox.shrink();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final systems =
-            geometry.computeSystemBreaks(measures, constraints.maxWidth);
+    // Kick del caricamento (idempotente) dei glifi delle figurazioni; il
+    // ListenableBuilder ridipinge i sistemi appena sono pronti.
+    FigurationImages.instance.ensureLoaded();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (int s = 0; s < systems.length; s++)
-              _buildSystem(systems[s], s == 0, constraints.maxWidth),
-          ],
-        );
-      },
+    return ListenableBuilder(
+      listenable: FigurationImages.instance,
+      builder: (context, _) => LayoutBuilder(
+        builder: (context, constraints) {
+          // Su tablet/desktop il budget di riga è allargato di 1/minScale:
+          // una riga può "sforare" la larghezza reale sapendo che il
+          // FittedBox la ridurrà al massimo fino alla scala minima. Le note
+          // non scendono mai sotto quella taglia; il numero di misure per
+          // riga (fino a 4) diventa la variabile dipendente.
+          final bool wide = constraints.maxWidth >= _tabletBreakpoint;
+          final systems = geometry.computeSystemBreaks(
+            measures,
+            wide ? constraints.maxWidth / _minSystemScale : constraints.maxWidth,
+            maxMeasuresPerSystem: wide ? _tabletMaxMeasures : 1 << 30,
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (int s = 0; s < systems.length; s++)
+                _buildSystem(systems[s], s == 0, constraints.maxWidth),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -58,7 +90,7 @@ class WrappedStaffView extends StatelessWidget {
         slice.fold<double>(
           0,
           (sum, m) =>
-              sum + geometry.measureWidth(m.timeSignature) + geometry.staffMeasureGap,
+              sum + geometry.measureContentWidth(m) + geometry.staffMeasureGap,
         );
 
     final int localActive = _localActiveMeasure(system);
@@ -74,6 +106,7 @@ class WrappedStaffView extends StatelessWidget {
           activeElementIndex: localActive >= 0 ? activeElementIndex : -1,
           activeTripletIndex: activeTripletIndex,
           showTimeSignature: isFirst,
+          singleLine: singleLine,
         ),
       ),
     );

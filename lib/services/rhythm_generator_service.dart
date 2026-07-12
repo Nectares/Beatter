@@ -120,8 +120,12 @@ class RhythmGeneratorService {
       case RhythmElementType.sixteenth:
       case RhythmElementType.sixteenthRest:
         return 0.25;
+      case RhythmElementType.dottedEighth:
+      case RhythmElementType.dottedEighthRest:
+        return 0.75;
       case RhythmElementType.triplet:
-        return 1.0; // Una terzina (3 crome terzinate) occupa esattamente 1.0 movimento (quarto)
+      case RhythmElementType.beatGroup:
+        return 1.0; // Terzine e gruppi da un battito occupano esattamente 1.0 movimento (quarto)
     }
   }
 

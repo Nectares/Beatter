@@ -116,7 +116,11 @@ class _SheetModePageState extends State<SheetModePage>
 
   Future<void> _exportExercise(RhythmExercise exercise) async {
     try {
-      await ExercisePdfExporter().export(exercise);
+      await runWithBusyDialog(
+        context,
+        message: 'Generazione PDF…',
+        task: () => ExercisePdfExporter().export(exercise),
+      );
     } catch (_) {
       if (mounted) {
         Toast.show(ToastType.error, 'Esportazione PDF non riuscita', context);

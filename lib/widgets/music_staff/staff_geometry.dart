@@ -6,6 +6,7 @@
 library;
 
 import '../../models/rhythm_element.dart';
+import 'figuration_images.dart';
 
 const double lineSpacing = 10.0;
 const double noteWidth = 12.0;
@@ -77,6 +78,44 @@ double measureWidth(String timeSignature) {
   }
 }
 
+/// Spazio orizzontale interno di margine ai lati degli elementi di una
+/// misura a larghezza-contenuto.
+const double _contentMeasurePadding = 10.0;
+
+/// Respiro orizzontale attorno a ogni blocco figurazione.
+const double _beatBlockGap = 12.0;
+
+/// Larghezza orizzontale occupata da un elemento in una misura a
+/// larghezza-contenuto. I blocchi figurazione usano la taglia display del
+/// loro glifo (le note hanno tutte la stessa dimensione, quindi le
+/// figurazioni fitte sono semplicemente più larghe); minime/semibrevi e il
+/// fallback senza glifo usano slot fissi.
+double elementContentWidth(RhythmElement element) {
+  if (element.type == RhythmElementType.beatGroup) {
+    final glyph = element.figurationId != null
+        ? FigurationImages.instance.of(element.figurationId!)
+        : null;
+    return (glyph?.displayWidth ?? 40.0) + _beatBlockGap;
+  }
+  return 34.0;
+}
+
+/// La larghezza engraved di [measure]: a contenuto per le misure di Sheet
+/// Mode (fatte di blocchi figurazione, la cui taglia è fissata dalla
+/// dimensione uniforme delle note), fissa per metro per tutte le altre
+/// (Composer Mode), che restano identiche a prima.
+double measureContentWidth(RhythmMeasure measure) {
+  final bool hasBlocks =
+      measure.elements.any((e) => e.type == RhythmElementType.beatGroup);
+  if (!hasBlocks) return measureWidth(measure.timeSignature);
+
+  double width = 2 * _contentMeasurePadding;
+  for (final element in measure.elements) {
+    width += elementContentWidth(element);
+  }
+  return width;
+}
+
 double targetBeats(String timeSignature) {
   switch (timeSignature) {
     case '2/4':
@@ -138,10 +177,14 @@ class SystemBreak {
 /// narrow screen can never produce an infinite loop). Pure geometry — used
 /// by both the on-screen wrapped staff view and the PDF exporter, so screen
 /// and paper can never disagree about where lines break.
+///
+/// [maxMeasuresPerSystem] limita quante misure può contenere una riga anche
+/// quando ne entrerebbero di più (es. massimo 4 su tablet).
 List<SystemBreak> computeSystemBreaks(
   List<RhythmMeasure> measures,
-  double maxWidth,
-) {
+  double maxWidth, {
+  int maxMeasuresPerSystem = 1 << 30,
+}) {
   const double leading = staffLeadingX + staffClefWidth + staffTimeSigWidth;
   final breaks = <SystemBreak>[];
 
@@ -150,8 +193,9 @@ List<SystemBreak> computeSystemBreaks(
     double width = leading;
     int count = 0;
     while (start + count < measures.length) {
+      if (count >= maxMeasuresPerSystem) break;
       final double next =
-          measureWidth(measures[start + count].timeSignature) + staffMeasureGap;
+          measureContentWidth(measures[start + count]) + staffMeasureGap;
       if (count > 0 && width + next > maxWidth) break;
       width += next;
       count++;
@@ -222,20 +266,38 @@ List<MeasureLayout> computeLayout(List<RhythmMeasure> measures) {
 
   for (int m = 0; m < measures.length; m++) {
     final measure = measures[m];
-    final double width = measureWidth(measure.timeSignature);
+    final bool hasBlocks =
+        measure.elements.any((e) => e.type == RhythmElementType.beatGroup);
+    final double width = measureContentWidth(measure);
     final double endX = currentX + width;
-    final double beatsPerMeasure = targetBeats(measure.timeSignature);
 
-    double elapsedBeats = 0.0;
     final elements = <ElementPosition>[];
-    for (int e = 0; e < measure.elements.length; e++) {
-      final element = measure.elements[e];
-      final double elementX =
-          currentX + (elapsedBeats / beatsPerMeasure) * (width - 30.0) + 15.0;
-      elements.add(
-        ElementPosition(measureIndex: m, elementIndex: e, x: elementX),
-      );
-      elapsedBeats += element.duration;
+    if (hasBlocks) {
+      // Misure a larghezza-contenuto: gli elementi si impacchettano in
+      // sequenza, ciascuno centrato nel proprio slot.
+      double cursor = currentX + _contentMeasurePadding;
+      for (int e = 0; e < measure.elements.length; e++) {
+        final double slot = elementContentWidth(measure.elements[e]);
+        elements.add(
+          ElementPosition(
+              measureIndex: m, elementIndex: e, x: cursor + slot / 2),
+        );
+        cursor += slot;
+      }
+    } else {
+      // Misure classiche (Composer Mode): posizione proporzionale al tempo.
+      final double beatsPerMeasure = targetBeats(measure.timeSignature);
+      double elapsedBeats = 0.0;
+      for (int e = 0; e < measure.elements.length; e++) {
+        final element = measure.elements[e];
+        final double elementX = currentX +
+            (elapsedBeats / beatsPerMeasure) * (width - 30.0) +
+            15.0;
+        elements.add(
+          ElementPosition(measureIndex: m, elementIndex: e, x: elementX),
+        );
+        elapsedBeats += element.duration;
+      }
     }
 
     layouts.add(

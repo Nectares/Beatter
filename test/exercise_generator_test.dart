@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:beatter/models/rhythm_element.dart';
 import 'package:beatter/models/rhythm_exercise.dart';
+import 'package:beatter/services/exercise_generation/beat_figurations.dart';
 import 'package:beatter/services/exercise_generation/difficulty_presets.dart';
 import 'package:beatter/services/exercise_generation/exercise_generator.dart';
 import 'package:beatter/widgets/music_staff/staff_geometry.dart' as geometry;
@@ -49,10 +50,12 @@ void main() {
       }
     });
 
-    test('only figures allowed by the preset are used', () {
+    test('only element types allowed by the preset figurations are used', () {
       for (final preset in kDifficultyPresets) {
-        final allowedTypes =
-            preset.allowedFigures.map((f) => f.elementType).toSet();
+        final allowedTypes = preset.figurations
+            .expand((w) => w.figuration.toElements(kExercisePitch))
+            .map((e) => e.type)
+            .toSet();
         for (int seed = 0; seed < 25; seed++) {
           final exercise =
               generate(preset: preset, timeSignature: '4/4', seed: seed);
@@ -70,38 +73,105 @@ void main() {
       }
     });
 
-    test('triplets always start on a quarter-note beat boundary', () {
-      final hard = presetById('hard');
-      for (int seed = 0; seed < 50; seed++) {
-        final exercise =
-            generate(preset: hard, timeSignature: '4/4', seed: seed);
-        for (final measure in exercise.measures) {
-          int positionUnits = 0;
-          for (final element in measure.elements) {
-            if (element.type == RhythmElementType.triplet) {
-              expect(positionUnits % 4, 0,
-                  reason: 'seed=$seed: triplet off the beat grid');
+    test('every beat is a whole figuration: elements never straddle beats',
+        () {
+      for (final preset in kDifficultyPresets) {
+        for (int seed = 0; seed < 50; seed++) {
+          final exercise =
+              generate(preset: preset, timeSignature: '4/4', seed: seed);
+          for (final measure in exercise.measures) {
+            double position = 0.0;
+            for (final element in measure.elements) {
+              // I gruppi (terzine, quintine…) e le note semplici da 1/4,
+              // 2/4, 4/4 devono cadere esattamente su un battito.
+              if (element.type == RhythmElementType.beatGroup ||
+                  element.type == RhythmElementType.quarter ||
+                  element.type == RhythmElementType.half ||
+                  element.type == RhythmElementType.whole) {
+                expect(position, position.roundToDouble(),
+                    reason: 'preset=${preset.id} seed=$seed: '
+                        '${element.type} off the beat grid');
+              }
+              position += element.duration;
             }
-            positionUnits += (element.duration * 4).round();
           }
         }
       }
     });
 
-    test('rests never open a measure and never repeat back-to-back', () {
+    test('beat groups carry members that fill exactly one beat', () {
+      final hardcore = presetById('hardcore');
+      bool sawGroup = false;
+      for (int seed = 0; seed < 50; seed++) {
+        final exercise =
+            generate(preset: hardcore, timeSignature: '4/4', seed: seed);
+        for (final measure in exercise.measures) {
+          for (final element in measure.elements) {
+            if (element.type != RhythmElementType.beatGroup) continue;
+            sawGroup = true;
+            expect(element.groupDurations, isNotEmpty);
+            expect(element.groupRests.length, element.groupDurations.length);
+            final double sum =
+                element.groupDurations.fold(0.0, (s, d) => s + d);
+            expect(sum, closeTo(1.0, 1e-9),
+                reason: 'seed=$seed: group members must fill the beat');
+          }
+        }
+      }
+      expect(sawGroup, isTrue,
+          reason: 'hardcore should generate grouped figurations');
+    });
+
+    test('full-beat rests never open a measure and never repeat', () {
+      bool isFullRestBeat(RhythmElement e) =>
+          e.type == RhythmElementType.beatGroup &&
+          e.groupRests.isNotEmpty &&
+          e.groupRests.every((r) => r);
+
       for (final preset in kDifficultyPresets) {
         for (int seed = 0; seed < 25; seed++) {
           final exercise =
               generate(preset: preset, timeSignature: '4/4', seed: seed);
           for (final measure in exercise.measures) {
-            expect(measure.elements.first.isRest, isFalse,
-                reason: 'preset=${preset.id} seed=$seed opened with a rest');
+            expect(
+              isFullRestBeat(measure.elements.first),
+              isFalse,
+              reason:
+                  'preset=${preset.id} seed=$seed opened with a full rest',
+            );
             for (int i = 1; i < measure.elements.length; i++) {
               expect(
-                measure.elements[i - 1].isRest && measure.elements[i].isRest,
+                isFullRestBeat(measure.elements[i - 1]) &&
+                    isFullRestBeat(measure.elements[i]),
                 isFalse,
-                reason: 'preset=${preset.id} seed=$seed has adjacent rests',
+                reason:
+                    'preset=${preset.id} seed=$seed has adjacent full rests',
               );
+            }
+          }
+        }
+      }
+    });
+
+    test('every one-beat element is a whole figuration block with its id',
+        () {
+      for (final preset in kDifficultyPresets) {
+        for (int seed = 0; seed < 25; seed++) {
+          final exercise =
+              generate(preset: preset, timeSignature: '4/4', seed: seed);
+          for (final measure in exercise.measures) {
+            for (final element in measure.elements) {
+              if (element.type == RhythmElementType.half ||
+                  element.type == RhythmElementType.whole) {
+                continue; // uniche note semplici consentite oltre il battito
+              }
+              expect(element.type, RhythmElementType.beatGroup,
+                  reason: 'preset=${preset.id} seed=$seed emitted a loose '
+                      'sub-beat element: ${element.type}');
+              expect(element.duration, 1.0);
+              expect(element.figurationId, isNotNull);
+              expect(kBeatFigurations.containsKey(element.figurationId),
+                  isTrue);
             }
           }
         }
@@ -177,6 +247,10 @@ void main() {
           expect(b.elements[e].type, a.elements[e].type);
           expect(b.elements[e].duration, a.elements[e].duration);
           expect(b.elements[e].noteName, a.elements[e].noteName);
+          expect(b.elements[e].figurationId, a.elements[e].figurationId);
+          expect(b.elements[e].groupDurations, a.elements[e].groupDurations);
+          expect(b.elements[e].groupRests, a.elements[e].groupRests);
+          expect(b.elements[e].tupletLabel, a.elements[e].tupletLabel);
         }
       }
     });

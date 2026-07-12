@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../theme/app_theme.dart';
 import '../../models/rhythm_element.dart';
+import 'figuration_images.dart';
 import 'music_staff_painter.dart';
 import 'staff_geometry.dart' as geometry;
 
@@ -51,7 +52,7 @@ class _MusicStaffViewState extends State<MusicStaffView> {
         geometry.staffLeadingX + geometry.staffClefWidth + geometry.staffTimeSigWidth;
     double width = leadingWidth;
     for (final measure in widget.measures) {
-      width += geometry.measureWidth(measure.timeSignature) + geometry.staffMeasureGap;
+      width += geometry.measureContentWidth(measure) + geometry.staffMeasureGap;
     }
     return width;
   }
@@ -61,6 +62,8 @@ class _MusicStaffViewState extends State<MusicStaffView> {
     if (widget.measures.isEmpty) {
       return _buildEmptyState();
     }
+
+    FigurationImages.instance.ensureLoaded();
 
     return SizedBox(
       height: 160,
@@ -82,12 +85,15 @@ class _MusicStaffViewState extends State<MusicStaffView> {
                 child: SizedBox(
                   width: width,
                   height: 160,
-                  child: CustomPaint(
-                    painter: MusicStaffPainter(
-                      measures: widget.measures,
-                      activeMeasureIndex: widget.activeMeasureIndex,
-                      activeElementIndex: widget.activeElementIndex,
-                      activeTripletIndex: widget.activeTripletIndex,
+                  child: ListenableBuilder(
+                    listenable: FigurationImages.instance,
+                    builder: (context, _) => CustomPaint(
+                      painter: MusicStaffPainter(
+                        measures: widget.measures,
+                        activeMeasureIndex: widget.activeMeasureIndex,
+                        activeElementIndex: widget.activeElementIndex,
+                        activeTripletIndex: widget.activeTripletIndex,
+                      ),
                     ),
                   ),
                 ),

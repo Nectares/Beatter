@@ -192,6 +192,23 @@ class RhythmPlaybackService extends ChangeNotifier {
           _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: e, tripletIndex: 0, noteType: element.type, noteName: element.tripletNotes[0]));
           _timeline.add(PlaybackEvent(beatOffset: currentBeat + 1.0 / 3.0, measureIndex: m, elementIndex: e, tripletIndex: 1, noteType: element.type, noteName: element.tripletNotes[1]));
           _timeline.add(PlaybackEvent(beatOffset: currentBeat + 2.0 / 3.0, measureIndex: m, elementIndex: e, tripletIndex: 2, noteType: element.type, noteName: element.tripletNotes[2]));
+        } else if (element.type == RhythmElementType.beatGroup) {
+          // Gruppo da 1 battito (terzine variate, quintine, sestine,
+          // biscrome…): un evento per membro al suo offset esatto; i membri
+          // di pausa restano eventi silenziosi per l'highlight.
+          double memberOffset = 0.0;
+          for (int g = 0; g < element.groupDurations.length; g++) {
+            _timeline.add(PlaybackEvent(
+              beatOffset: currentBeat + memberOffset,
+              measureIndex: m,
+              elementIndex: e,
+              tripletIndex: g,
+              isRest: element.groupRests[g],
+              noteType: element.type,
+              noteName: element.noteName,
+            ));
+            memberOffset += element.groupDurations[g];
+          }
         } else if (element.isRest) {
           // Evento silenzioso solo per notificare l'interfaccia dell'evidenziazione
           _timeline.add(PlaybackEvent(beatOffset: currentBeat, measureIndex: m, elementIndex: e, isRest: true, noteType: element.type));
