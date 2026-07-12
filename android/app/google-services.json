@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "242679736794-11u3ghk20qrn1m4a5huaot6auvrpfhv1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nectares.beatter",
+            "certificate_hash": "2f90d2aadb988656b158667cabc1eeb55c91a1f6"
+          }
+        },
+        {
           "client_id": "242679736794-p25qgdver5rt344njbsrab6eg060582g.apps.googleusercontent.com",
           "client_type": 3
         }
