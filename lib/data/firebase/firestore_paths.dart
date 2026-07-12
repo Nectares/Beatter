@@ -8,6 +8,7 @@ abstract final class FirestorePaths {
   static String workouts(String uid) => 'users/$uid/workouts';
   static String compositions(String uid) => 'users/$uid/compositions';
   static String exercises(String uid) => 'users/$uid/exercises';
+  static String readingScores(String uid) => 'users/$uid/readingScores';
   static String statsSummary(String uid) => 'users/$uid/stats/summary';
   static String achievements(String uid) => 'users/$uid/achievements';
   static String pointHistory(String uid) => 'users/$uid/pointHistory';

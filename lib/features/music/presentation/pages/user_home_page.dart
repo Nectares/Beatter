@@ -181,6 +181,18 @@ class UserHomePage extends StatelessWidget {
                             const SizedBox(height: AppSpacing.md),
 
                             FeatureCard(
+                              icon: Icons.repeat_rounded,
+                              title: 'Reading Mode',
+                              subtitle:
+                                  'Ascolta e ripeti: l\'esercizio si ferma ogni battuta e tocca a te rifare il ritmo, con o senza guida.',
+                              accentColor: AppColors.primary,
+                              onTap: () => NavigationShellController.maybeOf(
+                                context,
+                              )?.selectTab(AppTab.readingMode.index),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+
+                            FeatureCard(
                               icon: Icons.change_history_rounded,
                               title: 'Polyrhythm Lab',
                               subtitle:

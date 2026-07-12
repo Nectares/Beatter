@@ -26,6 +26,7 @@ import '../../domain/repositories/workout_repository.dart';
 import '../../domain/services/analytics_tracker.dart';
 import '../../domain/services/crash_reporter.dart';
 import '../../models/composition.dart';
+import '../../models/reading_score.dart';
 import '../../models/rhythm_exercise.dart';
 
 /// Which backend the app is running against.
@@ -125,12 +126,15 @@ abstract interface class DocumentStoreFactory {
   DocumentStore<Composition> compositions(String? uid);
 
   DocumentStore<RhythmExercise> exercises(String? uid);
+
+  DocumentStore<ReadingScore> readingScores(String? uid);
 }
 
 /// Storage keys predate the backend: keep them so existing on-device
 /// libraries survive the migration.
 const String kLocalCompositionsKey = 'composer.compositions.v1';
 const String kLocalExercisesKey = 'sheet_mode.exercises.v1';
+const String kLocalReadingScoresKey = 'reading_mode.records.v1';
 
 class _LocalDocumentStoreFactory implements DocumentStoreFactory {
   const _LocalDocumentStoreFactory();
@@ -150,6 +154,14 @@ class _LocalDocumentStoreFactory implements DocumentStoreFactory {
         toJson: (e) => e.toJson(),
         idOf: (e) => e.id,
         sort: (a, b) => b.createdAt.compareTo(a.createdAt), // newest first
+      );
+
+  @override
+  DocumentStore<ReadingScore> readingScores(String? uid) => LocalDocumentStore(
+        storageKey: kLocalReadingScoresKey,
+        fromJson: ReadingScore.fromJson,
+        toJson: (s) => s.toJson(),
+        idOf: (s) => s.id,
       );
 }
 
@@ -179,6 +191,21 @@ class _FirebaseDocumentStoreFactory implements DocumentStoreFactory {
       toJson: (e) => e.toJson(),
       idOf: (e) => e.id,
       orderByField: 'createdAt',
+    );
+  }
+
+  @override
+  DocumentStore<ReadingScore> readingScores(String? uid) {
+    if (uid == null) {
+      return const _LocalDocumentStoreFactory().readingScores(null);
+    }
+    return FirestoreDocumentStore(
+      firestore: FirebaseFirestore.instance,
+      collectionPath: FirestorePaths.readingScores(uid),
+      fromJson: ReadingScore.fromJson,
+      toJson: (s) => s.toJson(),
+      idOf: (s) => s.id,
+      orderByField: 'updatedAt',
     );
   }
 }

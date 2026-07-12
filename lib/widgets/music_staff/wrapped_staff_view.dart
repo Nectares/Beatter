@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/rhythm_element.dart';
+import '../../theme/app_colors.dart';
 import 'figuration_images.dart';
 import 'music_staff_painter.dart';
 import 'staff_geometry.dart' as geometry;
@@ -22,6 +23,10 @@ class WrappedStaffView extends StatelessWidget {
   /// Notazione ritmica a linea singola (Sheet Mode).
   final bool singleLine;
 
+  /// Colore dell'evidenziazione attiva (null = primario). Il Reading Mode
+  /// lo cambia durante la finestra di eco.
+  final Color? activeColor;
+
   /// Sopra questa larghezza (tablet/desktop) ogni riga punta a
   /// [_tabletMaxMeasures] misure, ma mai a costo di rimpicciolire le note
   /// oltre [_minSystemScale]: se non ci stanno, la riga ne prende meno.
@@ -41,6 +46,7 @@ class WrappedStaffView extends StatelessWidget {
     this.activeTripletIndex,
     this.systemHeight = 130,
     this.singleLine = false,
+    this.activeColor,
   });
 
   @override
@@ -107,6 +113,7 @@ class WrappedStaffView extends StatelessWidget {
           activeTripletIndex: activeTripletIndex,
           showTimeSignature: isFirst,
           singleLine: singleLine,
+          activeColor: activeColor ?? AppColors.primary,
         ),
       ),
     );

@@ -26,6 +26,11 @@ class MusicStaffPainter extends CustomPainter {
   /// né tagli addizionali.
   final bool singleLine;
 
+  /// Colore dell'evidenziazione dell'elemento attivo. Il Reading Mode lo
+  /// cambia durante la finestra di eco per distinguere "ascolta" (primario)
+  /// da "ripeti" (terziario).
+  final Color activeColor;
+
   /// Epoca della cache dei glifi al momento della costruzione: quando nuovi
   /// glifi finiscono di caricare, il painter successivo la vede diversa e
   /// `shouldRepaint` scatta.
@@ -42,6 +47,7 @@ class MusicStaffPainter extends CustomPainter {
     this.activeTripletIndex,
     this.showTimeSignature = true,
     this.singleLine = false,
+    this.activeColor = AppColors.primary,
   });
 
   @override
@@ -203,11 +209,11 @@ class MusicStaffPainter extends CustomPainter {
     int? activeTripletIndex,
   }) {
     final notePaint = Paint()
-      ..color = isActive ? AppColors.primary : AppColors.textPrimary
+      ..color = isActive ? activeColor : AppColors.textPrimary
       ..style = PaintingStyle.fill;
 
     final stemPaint = Paint()
-      ..color = isActive ? AppColors.primary : AppColors.textPrimary
+      ..color = isActive ? activeColor : AppColors.textPrimary
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
@@ -218,7 +224,7 @@ class MusicStaffPainter extends CustomPainter {
 
     if (isActive) {
       final glowPaint = Paint()
-        ..color = (element.isRest ? AppColors.tertiary : AppColors.primary)
+        ..color = (element.isRest ? AppColors.tertiary : activeColor)
             .withValues(alpha: 0.35)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       canvas.drawCircle(Offset(x, midY), 22, glowPaint);
@@ -379,7 +385,7 @@ class MusicStaffPainter extends CustomPainter {
     final double bottom = restOnly ? midY + h / 2 : anchorY + headHalf;
 
     final Color tint = isActive
-        ? AppColors.primary
+        ? activeColor
         : (restOnly ? AppColors.textSecondary : AppColors.textPrimary);
 
     final paint = Paint()
@@ -565,13 +571,13 @@ class MusicStaffPainter extends CustomPainter {
       final bool isThisNoteActive = isActive && activeTripletIndex == i;
 
       final notePaint = Paint()
-        ..color = isThisNoteActive ? AppColors.primary : AppColors.textPrimary
+        ..color = isThisNoteActive ? activeColor : AppColors.textPrimary
         ..style = PaintingStyle.fill;
 
       final stemPaint = Paint()
         ..color = isThisNoteActive
-            ? AppColors.primary
-            : (isActive ? AppColors.primary.withValues(alpha: 0.5) : AppColors.textPrimary)
+            ? activeColor
+            : (isActive ? activeColor.withValues(alpha: 0.5) : AppColors.textPrimary)
         ..strokeWidth = 1.3
         ..style = PaintingStyle.stroke;
 
@@ -585,7 +591,7 @@ class MusicStaffPainter extends CustomPainter {
     }
 
     final beamPaint = Paint()
-      ..color = isActive ? AppColors.primary : AppColors.textPrimary
+      ..color = isActive ? activeColor : AppColors.textPrimary
       ..strokeWidth = 3.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.square;
@@ -597,7 +603,7 @@ class MusicStaffPainter extends CustomPainter {
     );
 
     final bracketPaint = Paint()
-      ..color = isActive ? AppColors.primary : AppColors.textSecondary
+      ..color = isActive ? activeColor : AppColors.textSecondary
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
@@ -608,7 +614,7 @@ class MusicStaffPainter extends CustomPainter {
     canvas.drawLine(Offset(x2 + 8, bracketY), Offset(x2 + 8, bracketY + 4), bracketPaint);
 
     final textStyle = TextStyle(
-      color: isActive ? AppColors.primary : AppColors.textSecondary,
+      color: isActive ? activeColor : AppColors.textSecondary,
       fontSize: 10,
       fontWeight: FontWeight.bold,
     );
@@ -681,7 +687,7 @@ class MusicStaffPainter extends CustomPainter {
         _drawQuarterRest(canvas, centerX, midY, spacing, restPaint);
       } else {
         final notePaint = Paint()
-          ..color = isActive ? AppColors.primary : AppColors.textPrimary
+          ..color = isActive ? activeColor : AppColors.textPrimary
           ..style = PaintingStyle.fill;
         final stemPaint = Paint()
           ..color = notePaint.color
@@ -734,14 +740,14 @@ class MusicStaffPainter extends CustomPainter {
       }
 
       final notePaint = Paint()
-        ..color = isThisNoteActive ? AppColors.primary : AppColors.textPrimary
+        ..color = isThisNoteActive ? activeColor : AppColors.textPrimary
         ..style = PaintingStyle.fill;
 
       final stemPaint = Paint()
         ..color = isThisNoteActive
-            ? AppColors.primary
+            ? activeColor
             : (isActive
-                ? AppColors.primary.withValues(alpha: 0.5)
+                ? activeColor.withValues(alpha: 0.5)
                 : AppColors.textPrimary)
         ..strokeWidth = 1.3
         ..style = PaintingStyle.stroke;
@@ -764,7 +770,7 @@ class MusicStaffPainter extends CustomPainter {
 
     if (!hasRests) {
       final beamPaint = Paint()
-        ..color = isActive ? AppColors.primary : AppColors.textPrimary
+        ..color = isActive ? activeColor : AppColors.textPrimary
         ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.square;
@@ -816,7 +822,7 @@ class MusicStaffPainter extends CustomPainter {
     required bool isActive,
   }) {
     final bracketPaint = Paint()
-      ..color = isActive ? AppColors.primary : AppColors.textSecondary
+      ..color = isActive ? activeColor : AppColors.textSecondary
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
@@ -826,7 +832,7 @@ class MusicStaffPainter extends CustomPainter {
     canvas.drawLine(Offset(xTo, bracketY), Offset(xTo, bracketY + 4), bracketPaint);
 
     final textStyle = TextStyle(
-      color: isActive ? AppColors.primary : AppColors.textSecondary,
+      color: isActive ? activeColor : AppColors.textSecondary,
       fontSize: 10,
       fontWeight: FontWeight.bold,
     );
@@ -860,6 +866,7 @@ class MusicStaffPainter extends CustomPainter {
         oldDelegate.activeTripletIndex != activeTripletIndex ||
         oldDelegate.showTimeSignature != showTimeSignature ||
         oldDelegate.measures != measures ||
+        oldDelegate.activeColor != activeColor ||
         oldDelegate._glyphEpoch != _glyphEpoch;
   }
 }

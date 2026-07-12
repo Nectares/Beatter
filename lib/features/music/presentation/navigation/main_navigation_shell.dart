@@ -5,6 +5,7 @@ import '../../../../core/navigation/shell_nav_item.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../pages/flow_mode_page.dart';
 import '../pages/polyrhythm_lab_page.dart';
+import '../pages/reading_mode_page.dart';
 import '../pages/sheet_mode_page.dart';
 import '../pages/user_home_page.dart';
 
@@ -12,7 +13,7 @@ import '../pages/user_home_page.dart';
 /// [MainNavigationShell.destinations] — used instead of raw indices so
 /// callers (e.g. login routing, or a page asking the shell to switch tabs)
 /// stay readable and can't drift out of sync with the destination list.
-enum AppTab { home, flowMode, polyrhythmLab, sheetMode }
+enum AppTab { home, flowMode, polyrhythmLab, sheetMode, readingMode }
 
 /// Assembles the app's root [NavigationShell]. [destinations] are the real,
 /// navigable pages backing the shell's [IndexedStack]; [navItems] is the
@@ -49,6 +50,12 @@ class MainNavigationShell extends StatelessWidget {
       selectedIcon: Icons.menu_book_rounded,
       page: SheetModePage(),
     ),
+    ShellDestination(
+      label: 'Reading Mode',
+      icon: Icons.repeat_outlined,
+      selectedIcon: Icons.repeat_rounded,
+      page: ReadingModePage(),
+    ),
   ];
 
   static const List<ShellNavItem> navItems = [
@@ -72,6 +79,13 @@ class MainNavigationShell extends StatelessWidget {
       icon: Icons.menu_book_outlined,
       selectedIcon: Icons.menu_book_rounded,
       destinationIndex: 3,
+    ),
+    ShellNavItem(
+      label: 'Reading Mode',
+      subtitle: 'Ascolta e ripeti gli esercizi',
+      icon: Icons.repeat_outlined,
+      selectedIcon: Icons.repeat_rounded,
+      destinationIndex: 4,
     ),
     ShellNavItem(
       label: 'Polyrhythm Lab',

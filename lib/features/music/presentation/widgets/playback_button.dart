@@ -106,9 +106,12 @@ class _AnimatedPlayPauseButtonState extends State<_AnimatedPlayPauseButton>
 /// both Composer Mode and the read-only staff viewer — previously
 /// duplicated ad hoc at each call site. Omit [onStop] to show the
 /// play/pause button alone (Sheet Mode's single-pass exercise player).
+/// [onRestart], se fornito, aggiunge un pulsante che fa ripartire
+/// l'esecuzione dall'inizio invece che dal punto di pausa.
 class PlaybackButtonRow extends StatelessWidget {
   final VoidCallback? onPlay;
   final VoidCallback? onStop;
+  final VoidCallback? onRestart;
   final bool isPlaying;
   final bool isEnabled;
 
@@ -116,6 +119,7 @@ class PlaybackButtonRow extends StatelessWidget {
     super.key,
     required this.onPlay,
     this.onStop,
+    this.onRestart,
     required this.isPlaying,
     this.isEnabled = true,
   });
@@ -125,6 +129,13 @@ class PlaybackButtonRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        if (onRestart != null) ...[
+          PlaybackButton(
+            icon: Icons.replay_rounded,
+            onTap: isEnabled ? onRestart : null,
+          ),
+          const SizedBox(width: AppSpacing.md),
+        ],
         _AnimatedPlayPauseButton(
           isPlaying: isPlaying,
           onTap: isEnabled ? onPlay : null,

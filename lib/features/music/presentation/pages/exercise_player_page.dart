@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/beatter_app_bar.dart';
@@ -10,6 +12,7 @@ import '../../../../services/exercise_generation/difficulty_presets.dart';
 import '../../../../services/exercise_generation/exercise_generator.dart';
 import '../../../../services/exercise_pdf_exporter.dart';
 import '../../../../services/exercise_repository.dart';
+import '../../../../services/reading_score_repository.dart';
 import '../../../../services/rhythm_playback_service.dart';
 import '../../../../widgets/music_staff/wrapped_staff_view.dart';
 import '../widgets/playback_button.dart';
@@ -17,10 +20,20 @@ import '../widgets/playback_button.dart';
 /// Views a single generated rhythm reading exercise: multi-system staff,
 /// single-pass playback with live highlighting, save/rename, regenerate
 /// (same settings, new seed) and PDF export.
+///
+/// Con [readingControls] (Reading Mode) espone in più: il toggle "ascolta e
+/// ripeti" che ferma l'esecuzione ogni N battute lasciando all'utente una
+/// finestra della stessa durata per rifare il ritmo, la scelta tra ripetere
+/// col tap sullo schermo (con guida visiva e pad) o da solo, e il pad TAP.
 class ExercisePlayerPage extends StatefulWidget {
   final RhythmExercise exercise;
+  final bool readingControls;
 
-  const ExercisePlayerPage({super.key, required this.exercise});
+  const ExercisePlayerPage({
+    super.key,
+    required this.exercise,
+    this.readingControls = false,
+  });
 
   @override
   State<ExercisePlayerPage> createState() => _ExercisePlayerPageState();
@@ -32,6 +45,19 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
   final ExercisePdfExporter _pdfExporter = ExercisePdfExporter();
   bool _exporting = false;
 
+  // Impostazioni Reading Mode (attive solo con widget.readingControls).
+  bool _readingEnabled = true;
+  int _echoEveryMeasures = 1;
+  bool _tapRepeat = true;
+
+  // Punteggio Reading Mode: record persistito per esercizio e feedback
+  // transitorio dell'ultimo tap (true = good, false = miss).
+  final ReadingScoreRepository _scoreRepository = ReadingScoreRepository();
+  ReadingScore? _record;
+  bool _wasPlaying = false;
+  bool? _tapFlash;
+  Timer? _tapFlashTimer;
+
   @override
   void initState() {
     super.initState();
@@ -41,11 +67,69 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
     // Suono note di default silenzioso: l'esercizio di lettura si esegue
     // sul metronomo; bacchetta/rullante si attivano dal menù a tendina.
     _playbackService.updateSettings(bpm: _exercise.bpm, soundInstrument: 'silent');
-    _playbackService.preparePlayback(_exercise.measures);
+    _preparePlayback();
+
+    if (widget.readingControls) {
+      // Il repository dei record sincronizza col backend (Firestore da
+      // loggati): resta in ascolto per gli aggiornamenti remoti.
+      _scoreRepository.addListener(_onRecordChanged);
+      _scoreRepository.init().then((_) => _onRecordChanged());
+    }
+  }
+
+  void _onRecordChanged() {
+    if (!mounted || _exercise.id.isEmpty) return;
+    setState(() => _record = _scoreRepository.recordFor(_exercise.id));
+  }
+
+  /// A fine sessione (playback terminato o fermato) consolida il punteggio
+  /// nei record dell'esercizio e segnala l'eventuale nuovo record.
+  Future<void> _persistScore() async {
+    if (!widget.readingControls ||
+        !_readingEnabled ||
+        !_tapRepeat ||
+        _exercise.id.isEmpty) {
+      return;
+    }
+    final int good = _playbackService.echoGood;
+    final int strike = _playbackService.echoBestStreak;
+    if (good == 0) return;
+
+    final improved =
+        await _scoreRepository.submit(_exercise.id, good: good, strike: strike);
+    if (improved && mounted) {
+      Toast.show(ToastType.success, 'Nuovo record! 🏆', context);
+    }
+  }
+
+  /// (Ri)costruisce la timeline con le impostazioni correnti del Reading
+  /// Mode: finestre di eco ogni N battute quando attivo, playback normale
+  /// altrimenti.
+  void _preparePlayback() {
+    _playbackService.updateSettings(echoGuideEnabled: _tapRepeat);
+    _playbackService.preparePlayback(
+      _exercise.measures,
+      echoEveryMeasures:
+          widget.readingControls && _readingEnabled ? _echoEveryMeasures : null,
+    );
+  }
+
+  /// Le impostazioni reading cambiano la timeline: fermano l'esecuzione e
+  /// la ripreparano da capo.
+  void _updateReadingSettings(VoidCallback change) {
+    _playbackService.stop();
+    setState(change);
+    _preparePlayback();
   }
 
   @override
   void dispose() {
+    _tapFlashTimer?.cancel();
+    // Uscita a metà sessione: consolida comunque il punteggio raggiunto.
+    _persistScore();
+    if (widget.readingControls) {
+      _scoreRepository.removeListener(_onRecordChanged);
+    }
     _playbackService.removeListener(_onPlaybackChanged);
     _playbackService.stop();
     _playbackService.dispose();
@@ -53,6 +137,14 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
   }
 
   void _onPlaybackChanged() {
+    // Transizione play → fermo (fine naturale o stop, non la pausa, che
+    // riprende la stessa sessione): salva il punteggio.
+    final bool playing = _playbackService.isPlaying;
+    if (_wasPlaying && !playing && !_playbackService.isPaused) {
+      _persistScore();
+    }
+    _wasPlaying = playing;
+
     if (mounted) setState(() {});
   }
 
@@ -68,9 +160,16 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
       return;
     }
     if (!_playbackService.isPaused) {
-      _playbackService.preparePlayback(_exercise.measures);
+      _preparePlayback();
     }
     // Reading exercises play through once and stop at the end — no loop.
+    _playbackService.play(loop: false);
+  }
+
+  /// Ricomincia l'esecuzione dall'inizio, anche se in pausa a metà.
+  void _restartPlayback() {
+    _playbackService.stop();
+    _preparePlayback();
     _playbackService.play(loop: false);
   }
 
@@ -92,7 +191,7 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
       // intact in the library.
       _exercise = regenerated.copyWith(title: _isSaved ? '' : _exercise.title);
     });
-    _playbackService.preparePlayback(_exercise.measures);
+    _preparePlayback();
   }
 
   Future<void> _save() async {
@@ -203,6 +302,11 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
                           activeElementIndex: _playbackService.currentElementIndex,
                           activeTripletIndex: _playbackService.currentTripletIndex,
                           singleLine: true,
+                          // Durante la finestra di eco la guida cambia
+                          // colore: "ascolta" è primario, "ripeti" terziario.
+                          activeColor: _playbackService.isEchoPhase
+                              ? AppColors.tertiary
+                              : AppColors.primary,
                         ),
                       ),
                     ),
@@ -210,18 +314,28 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
                       isPlaying: _playbackService.isPlaying,
                       isEnabled: _exercise.measures.isNotEmpty,
                       onPlay: _togglePlayback,
+                      onRestart: _restartPlayback,
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _buildMetronomeToggle(),
-                    const SizedBox(height: AppSpacing.lg),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                      child: OutlinedButton.icon(
-                        onPressed: _regenerate,
-                        icon: const Icon(Icons.refresh_rounded, size: 20),
-                        label: const Text('Rigenera con le stesse impostazioni'),
+                    if (widget.readingControls) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg),
+                        child: _buildReadingCard(),
                       ),
-                    ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    if (!widget.readingControls)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                        child: OutlinedButton.icon(
+                          onPressed: _regenerate,
+                          icon: const Icon(Icons.refresh_rounded, size: 20),
+                          label: const Text('Rigenera con le stesse impostazioni'),
+                        ),
+                      ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
                 ),
@@ -300,6 +414,237 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
           }
         },
       ),
+    );
+  }
+
+  // ── Reading Mode ─────────────────────────────────────────────────────────
+
+  Widget _buildReadingCard() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: AppTheme.glassCardDecoration(borderRadius: AppRadius.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.repeat_rounded,
+                size: 20,
+                color: _readingEnabled ? AppColors.primary : AppColors.textMuted,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  'Ascolta e ripeti',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Switch(
+                value: _readingEnabled,
+                onChanged: (value) =>
+                    _updateReadingSettings(() => _readingEnabled = value),
+              ),
+            ],
+          ),
+          if (_readingEnabled) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                Text(
+                  'Pausa ogni',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                for (final n in const [1, 2, 4]) ...[
+                  ChoiceChip(
+                    label: Text(n == 1 ? '1 battuta' : '$n battute'),
+                    selected: _echoEveryMeasures == n,
+                    onSelected: (_) =>
+                        _updateReadingSettings(() => _echoEveryMeasures = n),
+                    selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                    labelStyle: TextStyle(
+                      color: _echoEveryMeasures == n
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      fontWeight: _echoEveryMeasures == n
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Row(
+              children: [
+                Icon(
+                  _tapRepeat ? Icons.touch_app_rounded : Icons.self_improvement_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    _tapRepeat
+                        ? 'Ripeti con i tap sullo schermo (guida visiva)'
+                        : 'Ripeti da solo, senza guida',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                ),
+                Switch(
+                  value: _tapRepeat,
+                  onChanged: (value) =>
+                      _updateReadingSettings(() => _tapRepeat = value),
+                ),
+              ],
+            ),
+            if (_tapRepeat) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _buildTapPad(),
+              const SizedBox(height: AppSpacing.sm),
+              _buildScoreRow(),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _onTapPad() {
+    if (!_playbackService.isPlaying) return;
+    _playbackService.playTap();
+    final bool hit = _playbackService.registerEchoTap();
+
+    // Flash verde/rosso del pad sull'esito del tap (solo in fase eco:
+    // fuori finestra il tap è ignorato e non deve segnare rosso).
+    if (!_playbackService.isEchoPhase && !hit) return;
+    _tapFlashTimer?.cancel();
+    setState(() => _tapFlash = hit);
+    _tapFlashTimer = Timer(const Duration(milliseconds: 220), () {
+      if (mounted) setState(() => _tapFlash = null);
+    });
+  }
+
+  /// Il pad su cui l'utente batte il ritmo durante la finestra di eco:
+  /// si "accende" quando tocca a lui, ogni tap suona la bacchetta e
+  /// lampeggia verde (good) o rosso (miss) in base al giudizio.
+  Widget _buildTapPad() {
+    final bool echoing =
+        _playbackService.isPlaying && _playbackService.isEchoPhase;
+
+    final Color accent = switch (_tapFlash) {
+      true => AppColors.success,
+      false => AppColors.error,
+      null => echoing ? AppColors.tertiary : AppColors.surfaceBorder,
+    };
+    final Color content = switch (_tapFlash) {
+      true => AppColors.success,
+      false => AppColors.error,
+      null => echoing ? AppColors.tertiary : AppColors.textMuted,
+    };
+
+    return GestureDetector(
+      onTapDown: (_) => _onTapPad(),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        height: 72,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: _tapFlash != null ? 0.22 : (echoing ? 0.18 : 0.25)),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: accent, width: 2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.touch_app_rounded, color: content),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              echoing
+                  ? 'RIPETI — batti il ritmo!'
+                  : (_playbackService.isPlaying ? 'Ascolta…' : 'TAP'),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: content,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Punteggio live della sessione (punti, good, strike) più il record
+  /// personale dell'esercizio.
+  Widget _buildScoreRow() {
+    final service = _playbackService;
+
+    Widget stat(IconData icon, String label, String value, Color color) {
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs + 2,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              '$label $value',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            stat(Icons.stars_rounded, 'Punti', '${service.echoScore}',
+                AppColors.primary),
+            stat(Icons.check_circle_rounded, 'Good', '${service.echoGood}',
+                AppColors.success),
+            stat(Icons.bolt_rounded, 'Strike', '${service.echoStreak}',
+                AppColors.tertiary),
+            stat(Icons.close_rounded, 'Miss', '${service.echoMiss}',
+                AppColors.error),
+          ],
+        ),
+        if (_record != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Record: Good ${_record!.good} • Strike ${_record!.strike}',
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ],
     );
   }
 

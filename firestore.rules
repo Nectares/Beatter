@@ -63,6 +63,11 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
+      // Record personali del Reading Mode (best good/strike per esercizio).
+      match /readingScores/{exerciseId} {
+        allow read, write: if isOwner(uid);
+      }
+
       // Cloud Functions only.
       match /stats/{docId} {
         allow read: if isOwner(uid);
