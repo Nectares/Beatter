@@ -44,6 +44,31 @@ class AuthService {
     );
   }
 
+  /// Rebuilds the [UserSession] for a user Firebase Auth kept signed in
+  /// across app restarts (persistence is on disk; [currentUser] is already
+  /// set when the app launches). Returns null when nobody is signed in or
+  /// the profile can't be loaded — the caller falls back to the login page.
+  ///
+  /// Unlike [_openSession] this doesn't log a `login` analytics event:
+  /// reopening the app is not a login.
+  static Future<UserSession?> restoreSession() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    try {
+      final profile =
+          await _profiles.fetchProfile(user.uid) ?? await _profiles.ensureProfile(user);
+      unawaited(ServiceLocator.get<AnalyticsTracker>().setUserId(user.uid));
+      unawaited(ServiceLocator.get<CrashReporter>().setUserId(user.uid));
+      return UserSession(
+        uid: user.uid,
+        email: user.email ?? '',
+        role: profile.isAdmin ? UserRole.admin : UserRole.user,
+      );
+    } on AppFailure {
+      return null;
+    }
+  }
+
   /// Email/password login preserving the historical contract: returns null
   /// on bad credentials or when [expectedRole] doesn't match the account.
   static Future<UserSession?> login({

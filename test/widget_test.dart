@@ -1,11 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:beatter/core/di/service_locator.dart';
 import 'package:beatter/main.dart';
 import 'package:beatter/models/rhythm_pattern.dart';
 import 'package:beatter/services/pattern_repository.dart';
 
 void main() {
   testWidgets('Beatter login screen smoke test', (WidgetTester tester) async {
+    // AuthGate resolves the auth repository at startup, so the locator must
+    // be configured before pumping the app (main() does this for real runs).
+    await ServiceLocator.reset();
+    ServiceLocator.configureLocal();
+
     await tester.pumpWidget(const BeatterApp());
+    // Let AuthGate's restoreSession() future resolve (no persisted session
+    // in local mode) and the login page's entrance animation finish.
+    await tester.pumpAndSettle();
+
     expect(find.text('Beatter'), findsOneWidget);
     expect(find.text('Sintonizza il tuo mondo'), findsOneWidget);
   });

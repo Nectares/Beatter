@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/di/service_locator.dart';
 import 'core/firebase/firebase_bootstrap.dart';
-import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/auth_gate.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -25,7 +25,9 @@ class BeatterApp extends StatelessWidget {
       title: 'Beatter',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const LoginPage(),
+      // AuthGate resumes a persisted Firebase session (straight to the
+      // shell/dashboard) and only shows the login page when signed out.
+      home: const AuthGate(),
     );
   }
 }

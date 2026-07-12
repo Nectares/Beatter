@@ -98,8 +98,9 @@ class _NavigationShellState extends State<NavigationShell> {
       ),
     );
 
+    final Widget scaffold;
     if (isTabletDevice) {
-      return Scaffold(
+      scaffold = Scaffold(
         key: _scaffoldKey,
         body: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,17 +117,30 @@ class _NavigationShellState extends State<NavigationShell> {
           ],
         ),
       );
+    } else {
+      scaffold = Scaffold(
+        key: _scaffoldKey,
+        drawer: ShellNavDrawer(
+          navItems: widget.navItems,
+          selectedIndex: _selectedIndex,
+          onSelect: _selectAndCloseDrawer,
+          onLogout: widget.onLogout,
+        ),
+        body: stack,
+      );
     }
 
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: ShellNavDrawer(
-        navItems: widget.navItems,
-        selectedIndex: _selectedIndex,
-        onSelect: _selectAndCloseDrawer,
-        onLogout: widget.onLogout,
-      ),
-      body: stack,
+    // The shell is the app's root route, so with nothing here the Android
+    // system back gesture would exit the app from any tab. Instead, back
+    // first returns to the first destination (Home); only from there does
+    // it actually leave the app. An open drawer is already handled by the
+    // Scaffold itself, which closes it before this PopScope is consulted.
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _select(0);
+      },
+      child: scaffold,
     );
   }
 }

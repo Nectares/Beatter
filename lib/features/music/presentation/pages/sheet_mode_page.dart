@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/layout/two_pane_layout.dart';
+import '../../../../core/navigation/shell_menu_button.dart';
 import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
@@ -130,6 +131,7 @@ class _SheetModePageState extends State<SheetModePage>
     return BeatterScaffold(
       appBar: BeatterAppBar(
         title: 'Sheet Mode',
+        leading: ShellMenuButton.maybe(context),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
