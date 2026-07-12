@@ -104,7 +104,8 @@ class _AnimatedPlayPauseButtonState extends State<_AnimatedPlayPauseButton>
 
 /// The standard primary-play/pause + secondary-stop control pair, used by
 /// both Composer Mode and the read-only staff viewer — previously
-/// duplicated ad hoc at each call site.
+/// duplicated ad hoc at each call site. Omit [onStop] to show the
+/// play/pause button alone (Sheet Mode's single-pass exercise player).
 class PlaybackButtonRow extends StatelessWidget {
   final VoidCallback? onPlay;
   final VoidCallback? onStop;
@@ -114,7 +115,7 @@ class PlaybackButtonRow extends StatelessWidget {
   const PlaybackButtonRow({
     super.key,
     required this.onPlay,
-    required this.onStop,
+    this.onStop,
     required this.isPlaying,
     this.isEnabled = true,
   });
@@ -128,11 +129,13 @@ class PlaybackButtonRow extends StatelessWidget {
           isPlaying: isPlaying,
           onTap: isEnabled ? onPlay : null,
         ),
-        const SizedBox(width: AppSpacing.md),
-        PlaybackButton(
-          icon: Icons.stop_rounded,
-          onTap: isEnabled ? onStop : null,
-        ),
+        if (onStop != null) ...[
+          const SizedBox(width: AppSpacing.md),
+          PlaybackButton(
+            icon: Icons.stop_rounded,
+            onTap: isEnabled ? onStop : null,
+          ),
+        ],
       ],
     );
   }

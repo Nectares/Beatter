@@ -195,8 +195,9 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
                       isPlaying: _playbackService.isPlaying,
                       isEnabled: _exercise.measures.isNotEmpty,
                       onPlay: _togglePlayback,
-                      onStop: _playbackService.stop,
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildMetronomeToggle(),
                     const SizedBox(height: AppSpacing.lg),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -214,6 +215,33 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMetronomeToggle() {
+    final bool enabled = _playbackService.isMetronomeEnabled;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.av_timer_rounded,
+          size: 18,
+          color: enabled ? AppColors.primary : AppColors.textMuted,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          'Metronomo',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: enabled ? AppColors.textPrimary : AppColors.textMuted,
+              ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Switch(
+          value: enabled,
+          onChanged: (value) =>
+              _playbackService.updateSettings(isMetronomeEnabled: value),
+        ),
+      ],
     );
   }
 
