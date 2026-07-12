@@ -47,12 +47,27 @@ class PolyrhythmEngine extends ChangeNotifier {
   double get bpm => _bpm;
   List<PolygonModel> get polygons => _polygons;
 
+  /// Quarter-note beats spanned by one full shared rotation: as many as the
+  /// densest active voice has vertices. This anchors BPM to the 1/4 note —
+  /// the densest polygon fires exactly once per beat and every other voice
+  /// spreads its vertices over the same span — so adding voices with more
+  /// sides stretches the cycle instead of speeding the hits up.
+  int get beatsPerCycle {
+    int maxSubdivisions = 1;
+    for (final polygon in _polygons) {
+      if (polygon.subdivisions > maxSubdivisions) {
+        maxSubdivisions = polygon.subdivisions;
+      }
+    }
+    return maxSubdivisions;
+  }
+
   /// "Tempo" — how long one full shared rotation (one cycle) takes. Every
   /// polygon completes exactly one revolution per cycle; a polygon's own
   /// rhythmic subdivision only changes how many vertices land within that
   /// same span, which is the entire mechanism that makes "3 vs 4" etc.
   /// visually/audibly correct.
-  double get cycleDurationMs => 60000.0 / _bpm;
+  double get cycleDurationMs => (60000.0 / _bpm) * beatsPerCycle;
 
   /// 0..1 progress through the current cycle — a pure function of elapsed
   /// time, so there is zero drift by construction (no incremental
