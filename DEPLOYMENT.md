@@ -18,6 +18,7 @@ Vetrina (`NicosiaInVetrina/docs/RELEASE_SIGNING.md`).
 | Cloud Functions | **used** (`functions/`, Node 20) |
 | Push notifications | not used (no `firebase_messaging`) |
 | Apple Team ID | `SQKY73537G` — **manual** signing: profile `provisioning-profile-beatter-1` (expires 2027-04-12) + "Apple Distribution: GIANVITO MARZO" |
+| iOS deployment target | 15.0 (raised from 13.0 on 2026-07-14: Firebase iOS SDK 12+ requires it) |
 | Android signing | upload keystore `~/keystores/beatter-upload.jks` (alias `upload`) + Play App Signing |
 
 ---
@@ -286,6 +287,14 @@ compilation without touching signing.
 - **Xcode Organizer** (recommended first time): `open ios/Runner.xcworkspace`
   → Product → Archive → Distribute App → App Store Connect → Upload.
 - **Transporter**: drag `build/ios/ipa/*.ipa` into the Transporter app → Deliver.
+
+**Known quirk (fixed 2026-07-14):** the FlutterFire "upload-crashlytics-symbols"
+script phase guesses the Firebase SDK path from Xcode's DerivedData layout,
+which fails with `flutter build ipa` + a custom DerivedData location (this Mac
+uses `/Volumes/CrucialX81T/XcodeData/DerivedData`). The script phase in
+`project.pbxproj` now falls back to
+`$SRCROOT/../build/ios/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run`.
+If `flutterfire configure` ever regenerates the project, re-apply that fallback.
 
 **Expected warnings:** "Upload Symbols Failed" for FirebaseAnalytics,
 GoogleAppMeasurement, grpc, absl, openssl_grpc, etc. — prebuilt binary
