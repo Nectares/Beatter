@@ -37,10 +37,8 @@ class _FlowModePageState extends State<FlowModePage>
   List<RhythmSlot> _generatedSlots = [];
   bool _isLoading = true;
 
-  // ── Grid scroll-to-active-slot ───────────────────────────────────────────
-  final ScrollController _gridScrollController = ScrollController();
+  // ── Slot keys — used for widget identity in the single-row tile layout ────
   List<GlobalKey> _slotKeys = [];
-  int? _lastScrolledSlotIndex;
 
   // ── Auto-Generation Timer ────────────────────────────────────────────────
   bool _isAutoGenerateEnabled = false;
@@ -106,7 +104,6 @@ class _FlowModePageState extends State<FlowModePage>
     _playbackService.stop();
     _playbackService.dispose();
     _bpmTextController.dispose();
-    _gridScrollController.dispose();
     _beatPulseController.dispose();
     _stopAutoGenerateTimer();
     super.dispose();
@@ -293,29 +290,10 @@ class _FlowModePageState extends State<FlowModePage>
     _scrollActiveSlotIntoView();
   }
 
-  // ── Keep the currently lit slot in view while playing ───────────────────
-  void _scrollActiveSlotIntoView() {
-    if (!_playbackService.isPlaying) {
-      _lastScrolledSlotIndex = null;
-      return;
-    }
-
-    final index = _playbackService.currentElementIndex;
-    if (index < 0 || index >= _slotKeys.length) return;
-    if (_lastScrolledSlotIndex == index) return;
-    _lastScrolledSlotIndex = index;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _slotKeys[index].currentContext;
-      if (ctx == null) return;
-      Scrollable.ensureVisible(
-        ctx,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        alignment: 0.5,
-      );
-    });
-  }
+  // ── All tiles are always fully visible in the single-row layout ───────────
+  // No scrolling needed; this is kept as a no-op so _onPlaybackChanged can
+  // call it unconditionally without any refactor of the listener.
+  void _scrollActiveSlotIntoView() {}
 
   // ── BPM Helpers ──────────────────────────────────────────────────────────
   void _onBpmChanged(String val) {
@@ -398,20 +376,15 @@ class _FlowModePageState extends State<FlowModePage>
     return (idx % _slotsCount) + 1;
   }
 
-  // ── Grid Helper ──────────────────────────────────────────────────────────
-  // Cards shrink (more columns) as the slot count grows, so more tiles fit
-  // on screen at once and less scrolling is needed to reach the active one.
-  int _getGridColumns(int slotCount, bool isLandscape) {
-    if (isLandscape) {
-      if (slotCount <= 4) return slotCount;
-      if (slotCount <= 6) return 4;
-      return 5; // 7
-    } else {
-      if (slotCount <= 3) return slotCount;
-      if (slotCount == 4) return 2;
-      if (slotCount <= 6) return 3;
-      return 4; // 7
-    }
+  // ── Tile-size helper ─────────────────────────────────────────────────────
+  // Returns the side length (px) each square tile must have so that all N
+  // slots fit in one row within [availableWidth], respecting the outer
+  // horizontal padding and inter-tile gap.  Clamped to a readable minimum.
+  double _calcTileSize(double availableWidth, int n) {
+    const double outerPadding = 12.0; // each side
+    final double gap = n <= 3 ? 12.0 : n <= 5 ? 10.0 : 8.0;
+    return ((availableWidth - 2 * outerPadding - (n - 1) * gap) / n)
+        .clamp(36.0, 180.0);
   }
 
   // ── Show Settings Bottom Sheet ───────────────────────────────────────────
@@ -1194,80 +1167,99 @@ class _FlowModePageState extends State<FlowModePage>
   }
 
   // ── Rhythm Slots Grid Widget ──────────────────────────────────────────────
+  // All N slots are placed in a single responsive row.  Each tile's side
+  // length is calculated dynamically via _calcTileSize so they always fit
+  // within the available width — no horizontal overflow, ever.
   Widget _buildSlotsGrid(bool isLandscape) {
-    final int columns = _getGridColumns(_generatedSlots.length, isLandscape);
-    // Denser grids (more columns) get tighter spacing/padding so the smaller
-    // cards don't look lost in oversized gaps.
-    final double spacing = columns <= 3 ? 16.0 : 10.0;
-    final double imagePadding = columns <= 3 ? 12.0 : 6.0;
+    final int n = _generatedSlots.length;
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Center(
-        child: SingleChildScrollView(
-          controller: _gridScrollController,
-          physics: const BouncingScrollPhysics(),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              mainAxisSpacing: spacing,
-              crossAxisSpacing: spacing,
-              childAspectRatio: 1.15,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const double outerPadding = 12.0;
+        final double gap = n <= 3 ? 12.0 : n <= 5 ? 10.0 : 8.0;
+        final double tileSize = _calcTileSize(constraints.maxWidth, n);
+        final double imagePadding = (tileSize * 0.10).clamp(4.0, 14.0);
+        final double radius = (tileSize * 0.14).clamp(8.0, AppRadius.lg);
+
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: outerPadding,
+              vertical: 20.0,
             ),
-            itemCount: _generatedSlots.length,
-            itemBuilder: (context, index) {
-              final slot = _generatedSlots[index];
-              final bool isActive =
-                  _playbackService.isPlaying &&
-                  _playbackService.currentElementIndex == index;
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                for (int index = 0; index < n; index++) ...[
+                  if (index > 0) SizedBox(width: gap),
+                  KeyedSubtree(
+                    key: index < _slotKeys.length ? _slotKeys[index] : null,
+                    child: _buildSlotTile(
+                      index: index,
+                      tileSize: tileSize,
+                      imagePadding: imagePadding,
+                      radius: radius,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-              return KeyedSubtree(
-                key: index < _slotKeys.length ? _slotKeys[index] : null,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  transform: Matrix4.identity()
-                    ..scaleByDouble(
-                      isActive ? 1.06 : 1.0,
-                      isActive ? 1.06 : 1.0,
-                      1.0,
-                      1.0,
-                    ),
-                  transformAlignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(
-                      color: isActive ? AppColors.primary : AppColors.surfaceBorder,
-                      width: isActive ? 3.5 : 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isActive
-                            ? AppColors.primary.withValues(alpha: 0.4)
-                            : Colors.black.withValues(alpha: 0.04),
-                        blurRadius: isActive ? 16 : 6,
-                        spreadRadius: isActive ? 2 : 0,
-                        offset: isActive
-                            ? const Offset(0, 4)
-                            : const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(imagePadding),
-                        child: Image.asset(slot.assetPath, fit: BoxFit.contain),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
+  // ── Single Slot Tile ─────────────────────────────────────────────────────
+  Widget _buildSlotTile({
+    required int index,
+    required double tileSize,
+    required double imagePadding,
+    required double radius,
+  }) {
+    final slot = _generatedSlots[index];
+    final bool isActive = _playbackService.isPlaying &&
+        _playbackService.currentElementIndex == index;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      // width/height animate when tileSize changes (slot-count change)
+      width: tileSize,
+      height: tileSize,
+      // scale animates for the active-beat highlight
+      transform: Matrix4.identity()
+        ..translate(tileSize / 2, tileSize / 2)
+        ..scale(isActive ? 1.06 : 1.0)
+        ..translate(-tileSize / 2, -tileSize / 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(
+          color: isActive ? AppColors.primary : AppColors.surfaceBorder,
+          width: isActive ? 3.5 : 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isActive
+                ? AppColors.primary.withValues(alpha: 0.4)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: isActive ? 16 : 6,
+            spreadRadius: isActive ? 2 : 0,
+            offset: isActive ? const Offset(0, 4) : const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(imagePadding),
+            child: Image.asset(
+              slot.assetPath,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ),

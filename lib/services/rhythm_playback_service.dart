@@ -590,6 +590,19 @@ class RhythmPlaybackService extends ChangeNotifier {
           // NON resettiamo lo stopwatch: evitiamo così qualsiasi jitter/drift.
           _loopStartMs += _totalBeats * msPerBeat;
           _nextEventIndex = 0;
+
+          // Ricalcola subito il beat offset nel nuovo frame di riferimento
+          // e spara immediatamente gli eventi già scaduti nel nuovo ciclo.
+          // Senza questo secondo pass, il primo evento del ciclo N+1 verrebbe
+          // ritardato fino al prossimo tick del timer (~5 ms), creando un
+          // micro-stutter percepibile — specialmente con 5+ slot dove la
+          // durata del ciclo non è un multiplo esatto dell'intervallo di polling.
+          final double newBeatOffset = (elapsedMs - _loopStartMs) / msPerBeat;
+          while (_nextEventIndex < _timeline.length &&
+                 _timeline[_nextEventIndex].beatOffset <= newBeatOffset) {
+            _executeEvent(_timeline[_nextEventIndex]);
+            _nextEventIndex++;
+          }
         } else {
           // Singolo ciclo: stop pulito
           timer.cancel();
