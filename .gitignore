@@ -43,3 +43,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Signing secrets — never commit (defense in depth: android/.gitignore also
+# ignores these; the keystore itself lives outside the repo in ~/keystores/)
+**/key.properties
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+/secrets/

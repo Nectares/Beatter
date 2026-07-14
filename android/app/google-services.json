@@ -14,11 +14,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "242679736794-0eqbrnfrmm4jr5qq2aakl8qvsesb2b63.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nectares.beatter",
+            "certificate_hash": "6cfd22a71e29d29b810b5d31d5155642dc9555e4"
+          }
+        },
+        {
           "client_id": "242679736794-11u3ghk20qrn1m4a5huaot6auvrpfhv1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.nectares.beatter",
             "certificate_hash": "2f90d2aadb988656b158667cabc1eeb55c91a1f6"
+          }
+        },
+        {
+          "client_id": "242679736794-vh98t3tl9f43aebs6255dr10gu7ifqnb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nectares.beatter",
+            "certificate_hash": "e2f8837f9ef109b107e5ff1e2e20b7b5a509b16e"
           }
         },
         {

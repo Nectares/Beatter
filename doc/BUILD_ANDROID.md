@@ -69,3 +69,19 @@ upload as-is**. To publish, configure a real signing key:
 2. Add a `key.properties` file (keystore path/passwords) and wire up a
    `signingConfigs.release` block in `android/app/build.gradle.kts` per the
    [official Flutter Android deployment guide](https://docs.flutter.dev/deployment/android).
+
+## Release signing
+
+Release builds are signed with the upload keystore when
+`android/key.properties` exists (git-ignored; keystore lives in
+`~/keystores/beatter-upload.jks`). Without that file the build falls back to
+**debug signing** — fine for local testing, rejected by Google Play.
+
+Verify what signed an artifact:
+
+```bash
+keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab
+# CN=Beatter → upload key; CN=Android Debug → fallback
+```
+
+Full setup, backup, and Play Console workflow: [DEPLOYMENT.md](../DEPLOYMENT.md).
