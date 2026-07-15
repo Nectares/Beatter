@@ -6,6 +6,12 @@
       "runtimeExecutable": "flutter",
       "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8347"],
       "port": 8347
+    },
+    {
+      "name": "beatter-web-local",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "web-server", "--web-port", "8348", "--dart-define=FORCE_LOCAL_BACKEND=true"],
+      "port": 8348
     }
   ]
 }

@@ -1230,9 +1230,9 @@ class _FlowModePageState extends State<FlowModePage>
       height: tileSize,
       // scale animates for the active-beat highlight
       transform: Matrix4.identity()
-        ..translate(tileSize / 2, tileSize / 2)
-        ..scale(isActive ? 1.06 : 1.0)
-        ..translate(-tileSize / 2, -tileSize / 2),
+        ..translateByDouble(tileSize / 2, tileSize / 2, 0, 1)
+        ..scaleByDouble(isActive ? 1.06 : 1.0, isActive ? 1.06 : 1.0, 1, 1)
+        ..translateByDouble(-tileSize / 2, -tileSize / 2, 0, 1),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(radius),

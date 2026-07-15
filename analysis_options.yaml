@@ -9,6 +9,13 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Build artifacts — includes build/ios/SourcePackages, where Swift Package
+    # Manager checks out the Firebase pods complete with their own Dart tests,
+    # which would otherwise flood the analyzer with hundreds of false errors.
+    - build/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

@@ -5,12 +5,18 @@ import 'core/firebase/firebase_bootstrap.dart';
 import 'features/auth/presentation/pages/auth_gate.dart';
 import 'theme/app_theme.dart';
 
+/// Build-time switch for screenshot/demo runs: skips Firebase entirely so the
+/// app boots deterministically in local mode with no network dependency.
+/// Usage: flutter run --dart-define=FORCE_LOCAL_BACKEND=true
+const bool _forceLocalBackend = bool.fromEnvironment('FORCE_LOCAL_BACKEND');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase when configured, transparent local fallback otherwise — the UI
   // is identical in both modes and only talks to the repository facades.
-  final mode = await initializeFirebaseBackend();
+  final mode =
+      _forceLocalBackend ? BackendMode.local : await initializeFirebaseBackend();
   ServiceLocator.configure(mode);
 
   runApp(const BeatterApp());
