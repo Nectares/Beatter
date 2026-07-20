@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'core/di/service_locator.dart';
 import 'core/firebase/firebase_bootstrap.dart';
+import 'core/widgets/persistent_banner_ad.dart';
 import 'features/auth/presentation/pages/auth_gate.dart';
 import 'theme/app_theme.dart';
 
@@ -12,6 +14,9 @@ const bool _forceLocalBackend = bool.fromEnvironment('FORCE_LOCAL_BACKEND');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Google Mobile Ads SDK
+  await MobileAds.instance.initialize();
 
   // Firebase when configured, transparent local fallback otherwise — the UI
   // is identical in both modes and only talks to the repository facades.
@@ -34,6 +39,17 @@ class BeatterApp extends StatelessWidget {
       // AuthGate resumes a persisted Firebase session (straight to the
       // shell/dashboard) and only shows the login page when signed out.
       home: const AuthGate(),
+      builder: (context, child) {
+        final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+        return Material(
+          child: Column(
+            children: [
+              Expanded(child: child ?? const SizedBox.shrink()),
+              if (!keyboardVisible) const PersistentBannerAd(),
+            ],
+          ),
+        );
+      },
     );
   }
 }
