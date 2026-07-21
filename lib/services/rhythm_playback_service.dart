@@ -426,67 +426,6 @@ class RhythmPlaybackService extends ChangeNotifier {
     }
   }
 
-  /// Costruisce la timeline esatta degli eventi in base alle tessere del Flow Mode.
-  /// Flow Mode usa sempre un tempo fisso di 4/4.
-  void prepareSlotPlayback(List<RhythmSlot> slots) {
-    _timeline.clear();
-
-    for (int i = 0; i < slots.length; i++) {
-      final slot = slots[i];
-      final double slotBeatOffset = i.toDouble();
-
-      // 1. Aggiungi i click del metronomo su ciascun movimento
-      final bool isAccent = i % 4 == 0;
-
-      _timeline.add(PlaybackEvent(
-        beatOffset: slotBeatOffset,
-        measureIndex: 0,
-        elementIndex: -1,
-        isMetronome: true,
-        isAccent: isAccent,
-        noteType: RhythmElementType.quarter,
-      ));
-
-      // 2. Aggiungi le note all'interno del movimento
-      double subBeatOffset = 0.0;
-      for (int noteIdx = 0; noteIdx < slot.noteDurations.length; noteIdx++) {
-        final double noteDuration = slot.noteDurations[noteIdx];
-        final bool isRest = slot.isRestList[noteIdx];
-
-        _timeline.add(PlaybackEvent(
-          beatOffset: slotBeatOffset + subBeatOffset,
-          measureIndex: 0,
-          elementIndex: i, // L'indice della tessera
-          isRest: isRest,
-          noteType: RhythmElementType.quarter,
-        ));
-
-        subBeatOffset += noteDuration;
-      }
-    }
-
-    _totalBeats = slots.length.toDouble();
-    _timeline.sort((a, b) => a.beatOffset.compareTo(b.beatOffset));
-    _nextEventIndex = 0;
-  }
-
-  /// Aggiorna le tessere del Flow Mode in modo fluido senza interrompere il loop.
-  void updateSlotsSeamlessly(List<RhythmSlot> slots) {
-    prepareSlotPlayback(slots);
-    
-    if (_isPlaying && !_isPaused) {
-      final double msPerBeat = 60000.0 / _bpm;
-      final double elapsedMs = _stopwatch.elapsedMilliseconds.toDouble();
-      final double currentBeatOffset = (elapsedMs - _loopStartMs) / msPerBeat;
-
-      _nextEventIndex = 0;
-      while (_nextEventIndex < _timeline.length &&
-             _timeline[_nextEventIndex].beatOffset <= currentBeatOffset) {
-        _nextEventIndex++;
-      }
-    }
-  }
-
   /// Avvia la riproduzione. Con [loop] attivo (default) ripete all'infinito;
   /// con [loop] disattivo esegue un singolo passaggio e si ferma da sola
   /// alla fine (usato dagli esercizi di lettura di Sheet Mode).

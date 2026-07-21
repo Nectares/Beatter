@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../theme/app_theme.dart';
-import '../../../../models/rhythm_element.dart';
-import '../../../../services/rhythm_playback_service.dart';
+import '../../../../services/figurations/flow_playback_controller.dart';
 import '../../../../core/layout/responsive_context.dart';
 import '../../../../core/layout/two_pane_layout.dart';
 import '../../../../core/navigation/shell_menu_button.dart';
@@ -24,67 +22,41 @@ class FlowModePage extends StatefulWidget {
 
 class _FlowModePageState extends State<FlowModePage>
     with TickerProviderStateMixin {
-  // ── Services ────────────────────────────────────────────────────────────
-  late RhythmPlaybackService _playbackService;
+  // ── Engine ────────────────────────────────────────────────────────────────
+  late final FlowPlaybackController _controller;
 
-  // ── Settings ─────────────────────────────────────────────────────────────
-  int _bpm = 120;
-  int _slotsCount = 4;
-
-  // ── Assets & State ────────────────────────────────────────────────────────
-  List<String> _rhythmAssets = [];
-  final Map<String, bool> _enabledAssets = {};
-  List<RhythmSlot> _generatedSlots = [];
-  bool _isLoading = true;
-
-  // ── Slot keys — used for widget identity in the single-row tile layout ────
-  List<GlobalKey> _slotKeys = [];
-
-  // ── Auto-Generation Timer ────────────────────────────────────────────────
+  // ── Auto-variation timer (UI-driven, seamless swaps) ──────────────────────
   bool _isAutoGenerateEnabled = false;
-  double _autoGenerateSeconds = 5.0; // Default 5 seconds
+  double _autoGenerateSeconds = 5.0;
   Timer? _autoGenerateTimer;
 
-  // ── UI Controllers ────────────────────────────────────────────────────────
+  // ── UI controllers ────────────────────────────────────────────────────────
   late TextEditingController _bpmTextController;
 
-  // Purely presentational: a free-running pulse synced to the current BPM,
-  // used to give the metronome indicator a visible "heartbeat" while
-  // playing. Not sample-accurate against the audio clock (the service only
-  // notifies listeners on note/rest events, not on every metronome click),
-  // but imperceptible for a glance-at visual cue.
+  // Purely presentational heartbeat synced to the current BPM.
   late final AnimationController _beatPulseController = AnimationController(
     vsync: this,
   );
 
-  // Whether the orientation lock below was last set for "visible" (true)
-  // or "hidden" (false) — avoids re-issuing the platform channel call on
-  // every dependency change once it's already in the right state.
+  // Avoids re-issuing the orientation lock when already in the right state.
   bool? _lastAppliedVisibility;
+
+  // Signature of the last precached sequence, so tiles are only precached when
+  // the sequence actually changes (not on every per-beat notification).
+  String _lastPrecacheSignature = '';
 
   @override
   void initState() {
     super.initState();
-
-    _playbackService = RhythmPlaybackService();
-    _playbackService.updateSettings(bpm: _bpm);
-    _playbackService.addListener(_onPlaybackChanged);
-
-    _bpmTextController = TextEditingController(text: _bpm.toString());
-
-    // Load assets dynamically
-    _loadAssets();
+    _controller = FlowPlaybackController();
+    _controller.addListener(_onControllerChanged);
+    _bpmTextController = TextEditingController(text: _controller.bpm.toString());
+    _controller.init();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // This page now stays mounted inside the shell's IndexedStack even
-    // while the Home tab is showing (that's what fixes state loss on tab
-    // switch — see NavigationShell), so the landscape rotation this page
-    // wants can't be tied to initState/dispose anymore: those only fire
-    // once, when the shell itself is created/torn down, not on every tab
-    // switch. ShellVisibility reports the actual on-screen state instead.
     final bool visible = ShellVisibility.of(context);
     if (_lastAppliedVisibility == visible) return;
     _lastAppliedVisibility = visible;
@@ -100,19 +72,40 @@ class _FlowModePageState extends State<FlowModePage>
   @override
   void dispose() {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    _playbackService.removeListener(_onPlaybackChanged);
-    _playbackService.stop();
-    _playbackService.dispose();
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
     _bpmTextController.dispose();
     _beatPulseController.dispose();
     _stopAutoGenerateTimer();
     super.dispose();
   }
 
-  // ── Beat-pulse sync ──────────────────────────────────────────────────────
+  // ── Controller listener ────────────────────────────────────────────────────
+  void _onControllerChanged() {
+    if (!mounted) return;
+    setState(() {});
+    _syncBeatPulse();
+    _precacheSequenceIfChanged();
+  }
+
+  void _precacheSequenceIfChanged() {
+    final items = _controller.sequence;
+    final signature = items.map((p) => p.figuration.imageAsset).join('|');
+    if (signature == _lastPrecacheSignature) return;
+    _lastPrecacheSignature = signature;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final item in items) {
+        precacheImage(AssetImage(item.figuration.imageAsset), context);
+      }
+    });
+  }
+
+  // ── Beat-pulse sync ────────────────────────────────────────────────────────
   void _syncBeatPulse() {
-    if (_playbackService.isPlaying) {
-      final ms = (60000 / _playbackService.bpm).round().clamp(150, 2000);
+    if (_controller.isPlaying) {
+      final ms = (60000 / _controller.bpm).round().clamp(150, 2000);
       if (!_beatPulseController.isAnimating ||
           _beatPulseController.duration?.inMilliseconds != ms) {
         _beatPulseController.duration = Duration(milliseconds: ms);
@@ -125,215 +118,37 @@ class _FlowModePageState extends State<FlowModePage>
     }
   }
 
-  // ── Load Assets Dynamically ────────────────────────────────────────────────
-  Future<void> _loadAssets() async {
-    List<String> paths = [];
-    try {
-      final AssetManifest manifest = await AssetManifest.loadFromAssetBundle(
-        rootBundle,
-      );
-      paths = manifest
-          .listAssets()
-          .where(
-            (key) =>
-                (key.startsWith('assets/icon/') ||
-                    key.startsWith('assets/icons/')) &&
-                key.endsWith('.png'),
-          )
-          .toList();
-    } catch (_) {}
-
-    if (paths.isEmpty) {
-      try {
-        final manifestContent = await rootBundle.loadString(
-          'AssetManifest.json',
-        );
-        final Map<String, dynamic> manifestMap = json.decode(manifestContent);
-        paths = manifestMap.keys
-            .where(
-              (key) =>
-                  (key.startsWith('assets/icon/') ||
-                      key.startsWith('assets/icons/')) &&
-                  key.endsWith('.png'),
-            )
-            .toList();
-      } catch (_) {}
-    }
-
-    // Fallback static list in case manifest reading fails in certain environments
-    if (paths.isEmpty) {
-      paths = const [
-        'assets/icon/Screenshot 2026-05-07 alle 15.39.51.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.40.22.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.40.59.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.41.33.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.43.32.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.43.59.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.44.26.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.45.34.png', // This will be filtered out!
-        'assets/icon/Screenshot 2026-05-07 alle 15.45.42.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.45.48.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.45.55.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.46.35.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.46.58.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.47.06.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.47.14.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.47.35.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.47.53.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.14.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.21.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.27.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.35.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.40.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.45.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.51.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.48.57.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.50.31.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.50.38.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.50.48.png',
-        'assets/icon/Screenshot 2026-05-07 alle 15.51.02.png',
-      ];
-    }
-
-    paths.sort();
-
-    if (mounted) {
-      setState(() {
-        // Exclude single eighth note (Screenshot 2026-05-07 alle 15.45.34.png)
-        _rhythmAssets = paths.where((p) => !p.contains('15.45.34')).toList();
-
-        for (var path in _rhythmAssets) {
-          _enabledAssets[path] = true;
-        }
-        _isLoading = false;
-      });
-
-      // Precache images in Flutter image cache. Deferred to a post-frame
-      // callback: this resumes from an `await` above, and calling
-      // precacheImage's underlying MediaQuery lookup on `context` too soon
-      // after initState (before this element's first build has been
-      // registered with the framework) throws
-      // "dependOnInheritedWidgetOfExactType<MediaQuery>() ... called before
-      // initState() completed" — reliably reproducible when this page is
-      // reached via a pushReplacement (e.g. the drawer's Flow Mode entry)
-      // rather than as the app's very first route, where scheduling happens
-      // to land on the safe side of the race.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        for (var path in _rhythmAssets) {
-          precacheImage(AssetImage(path), context);
-        }
-      });
-
-      _generateNewRhythm();
-    }
+  // ── Generation ─────────────────────────────────────────────────────────────
+  void _generateNewRhythm() {
+    if (_isAutoGenerateEnabled) _startAutoGenerateTimer();
+    _controller.generate();
   }
 
-  // ── Rhythm Generation ────────────────────────────────────────────────────
-  void _generateNewRhythm({bool fromTimer = false}) {
-    if (!fromTimer && _isAutoGenerateEnabled) {
-      _startAutoGenerateTimer(); // Reset timer on manual action
-    }
-
-    final activeAssets = _rhythmAssets
-        .where((p) => _enabledAssets[p] == true)
-        .toList();
-    if (activeAssets.isEmpty) {
-      activeAssets.addAll(_rhythmAssets);
-    }
-
-    final List<RhythmSlot> slots = [];
-    final rand = math.Random();
-
-    if (fromTimer && _generatedSlots.isNotEmpty) {
-      // Auto-generazione: cambia solo 1 singola tessera random
-      slots.addAll(_generatedSlots);
-      final randIndex = rand.nextInt(_slotsCount);
-      slots[randIndex] = RhythmSlot.fromAsset(
-        activeAssets[rand.nextInt(activeAssets.length)],
-      );
-    } else {
-      // Generazione manuale o prima generazione: cambia tutte le tessere
-      for (int i = 0; i < _slotsCount; i++) {
-        final randomAsset = activeAssets[rand.nextInt(activeAssets.length)];
-        slots.add(RhythmSlot.fromAsset(randomAsset));
-      }
-    }
-
-    if (_slotKeys.length != slots.length) {
-      _slotKeys = List.generate(slots.length, (_) => GlobalKey());
-    }
-
-    setState(() {
-      _generatedSlots = slots;
-    });
-
-    if (fromTimer && _playbackService.isPlaying) {
-      // Se generato dal timer e in play, aggiorna in modo fluido per non perdere il timing
-      _playbackService.updateSlotsSeamlessly(slots);
-    } else {
-      // Altrimenti fermati e ricomincia per un reset manuale pulito
-      final wasPlaying = _playbackService.isPlaying;
-      _playbackService.stop();
-      _playbackService.prepareSlotPlayback(slots);
-      if (wasPlaying) {
-        _playbackService.play();
-      }
-    }
-  }
-
-  // ── Playback Listener ────────────────────────────────────────────────────
-  void _onPlaybackChanged() {
-    if (!mounted) return;
-    setState(() {});
-    _syncBeatPulse();
-    _scrollActiveSlotIntoView();
-  }
-
-  // ── All tiles are always fully visible in the single-row layout ───────────
-  // No scrolling needed; this is kept as a no-op so _onPlaybackChanged can
-  // call it unconditionally without any refactor of the listener.
-  void _scrollActiveSlotIntoView() {}
-
-  // ── BPM Helpers ──────────────────────────────────────────────────────────
+  // ── BPM helpers ────────────────────────────────────────────────────────────
   void _onBpmChanged(String val) {
     final p = int.tryParse(val);
-    if (p != null && p >= 40 && p <= 240) {
-      setState(() => _bpm = p);
-      _playbackService.updateSettings(bpm: p);
-      _syncBeatPulse();
+    if (p != null && p >= 40 && p <= 180) {
+      _controller.bpm = p;
     }
   }
 
   void _onBpmSlider(double val) {
-    setState(() {
-      _bpm = val.toInt();
-      _bpmTextController.text = _bpm.toString();
-    });
-    _playbackService.updateSettings(bpm: _bpm);
-    _syncBeatPulse();
+    _controller.bpm = val.toInt();
+    _bpmTextController.text = _controller.bpm.toString();
   }
 
-  // ── Playback Controls ────────────────────────────────────────────────────
-  /// Toggle Play/Pause del loop infinito.
+  // ── Playback controls ──────────────────────────────────────────────────────
   void _togglePlay() {
-    if (_generatedSlots.isEmpty) return;
-    if (_playbackService.isPlaying) {
-      _playbackService.pause();
-    } else {
-      // Sia da pausa che da stop, play() gestisce entrambi i casi
-      _playbackService.play();
-    }
+    if (!_controller.hasSequence) return;
+    _controller.togglePlay();
   }
 
-  // ── Auto-Generation Timers ────────────────────────────────────────────────
+  // ── Auto-variation timer ───────────────────────────────────────────────────
   void _startAutoGenerateTimer() {
     _autoGenerateTimer?.cancel();
     _autoGenerateTimer = Timer.periodic(
       Duration(milliseconds: (_autoGenerateSeconds * 1000).toInt()),
-      (timer) {
-        _generateNewRhythm(fromTimer: true);
-      },
+      (_) => _controller.autoVary(),
     );
   }
 
@@ -343,9 +158,7 @@ class _FlowModePageState extends State<FlowModePage>
   }
 
   void _onAutoGenerateToggled(bool value) {
-    setState(() {
-      _isAutoGenerateEnabled = value;
-    });
+    setState(() => _isAutoGenerateEnabled = value);
     if (value) {
       _startAutoGenerateTimer();
     } else {
@@ -354,12 +167,8 @@ class _FlowModePageState extends State<FlowModePage>
   }
 
   void _onAutoGenerateSpeedChanged(double seconds) {
-    setState(() {
-      _autoGenerateSeconds = seconds;
-    });
-    if (_isAutoGenerateEnabled) {
-      _startAutoGenerateTimer();
-    }
+    setState(() => _autoGenerateSeconds = seconds);
+    if (_isAutoGenerateEnabled) _startAutoGenerateTimer();
   }
 
   String _getSpeedLabel(double seconds) {
@@ -370,24 +179,23 @@ class _FlowModePageState extends State<FlowModePage>
     return 'Molto lenta';
   }
 
-  int get _currentBeatNumber {
-    final idx = _playbackService.currentElementIndex;
-    if (idx < 0) return 1;
-    return (idx % _slotsCount) + 1;
+  int get _currentMovimentoNumber {
+    final idx = _controller.activeIndex;
+    if (idx < 0 || idx >= _controller.sequence.length) return 1;
+    return idx + 1;
   }
 
-  // ── Tile-size helper ─────────────────────────────────────────────────────
-  // Returns the side length (px) each square tile must have so that all N
-  // slots fit in one row within [availableWidth], respecting the outer
-  // horizontal padding and inter-tile gap.  Clamped to a readable minimum.
-  double _calcTileSize(double availableWidth, int n) {
-    const double outerPadding = 12.0; // each side
-    final double gap = n <= 3 ? 12.0 : n <= 5 ? 10.0 : 8.0;
-    return ((availableWidth - 2 * outerPadding - (n - 1) * gap) / n)
-        .clamp(36.0, 180.0);
+  String get _countLabel => 'MOVIMENTI';
+
+  // ── Tile-size helper for the wrap layout ───────────────────────────────────
+  double _calcTileSize(double availableWidth, int perRow) {
+    const double outerPadding = 12.0;
+    const double gap = 10.0;
+    return ((availableWidth - 2 * outerPadding - (perRow - 1) * gap) / perRow)
+        .clamp(48.0, 150.0);
   }
 
-  // ── Show Settings Bottom Sheet ───────────────────────────────────────────
+  // ── Settings bottom sheet ──────────────────────────────────────────────────
   void _showSettingsBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -398,9 +206,7 @@ class _FlowModePageState extends State<FlowModePage>
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
             return ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(28),
-              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
@@ -409,16 +215,14 @@ class _FlowModePageState extends State<FlowModePage>
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.92),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(28),
-                    ),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(28)),
                     border: Border(
                       top: BorderSide(color: AppColors.surfaceBorder, width: 1.5),
                     ),
                   ),
                   child: Column(
                     children: [
-                      // Drag Handle
                       Container(
                         margin: const EdgeInsets.only(top: 12, bottom: 8),
                         width: 40,
@@ -428,19 +232,13 @@ class _FlowModePageState extends State<FlowModePage>
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      // Title Header
                       Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 8,
-                        ),
+                            horizontal: 24, vertical: 8),
                         child: Row(
                           children: [
-                            const Icon(
-                              Icons.tune_rounded,
-                              color: AppColors.primary,
-                              size: 24,
-                            ),
+                            const Icon(Icons.tune_rounded,
+                                color: AppColors.primary, size: 24),
                             const SizedBox(width: 10),
                             const Text(
                               'Rhythm Settings',
@@ -452,18 +250,14 @@ class _FlowModePageState extends State<FlowModePage>
                             ),
                             const Spacer(),
                             IconButton(
-                              icon: const Icon(
-                                Icons.close_rounded,
-                                color: AppColors.textSecondary,
-                              ),
+                              icon: const Icon(Icons.close_rounded,
+                                  color: AppColors.textSecondary),
                               onPressed: () => Navigator.pop(context),
                             ),
                           ],
                         ),
                       ),
                       const Divider(height: 1, color: AppColors.surfaceBorder),
-
-                      // Scrollable Controls
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
@@ -471,21 +265,74 @@ class _FlowModePageState extends State<FlowModePage>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ── BPM Slider ───────────────────────────────
+                              // ── Ottave mode ──────────────────────────────
+                              Row(
+                                children: [
+                                  _buildSectionTitle('MODALITÀ OTTAVE'),
+                                  const Spacer(),
+                                  Switch(
+                                    value: _controller.ottaveMode,
+                                    activeThumbColor: AppColors.primary,
+                                    onChanged: (val) {
+                                      _controller.setOttaveMode(val);
+                                      setSheetState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                _controller.ottaveMode
+                                    ? 'Movimenti dal set di ottave (3/8).'
+                                    : 'Movimenti dal set di quarti (1/4).',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary
+                                      .withValues(alpha: 0.8),
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+
+                              // ── Sound selector ───────────────────────────
+                              _buildSectionTitle('SUONO'),
+                              const SizedBox(height: 8),
+                              _buildSoundSelector(onChanged: () {
+                                setSheetState(() {});
+                              }),
+                              const SizedBox(height: 24),
+
+                              // ── Metronome ────────────────────────────────
+                              Row(
+                                children: [
+                                  _buildSectionTitle('METRONOMO'),
+                                  const Spacer(),
+                                  Switch(
+                                    value: _controller.metronomeEnabled,
+                                    activeThumbColor: AppColors.primary,
+                                    onChanged: (val) {
+                                      _controller.setMetronomeEnabled(val);
+                                      setSheetState(() {});
+                                    },
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+
+                              // ── BPM slider ───────────────────────────────
                               _buildSectionTitle('TEMPO (BPM)'),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Expanded(
                                     child: Slider(
-                                      value: _bpm.toDouble(),
+                                      value: _controller.bpm.toDouble(),
                                       min: 40,
-                                      max: 240,
+                                      max: 180,
                                       activeColor: AppColors.primary,
                                       inactiveColor: AppColors.inactiveTrack,
                                       onChanged: (v) {
-                                        setSheetState(() => _bpm = v.toInt());
                                         _onBpmSlider(v);
+                                        setSheetState(() {});
                                       },
                                     ),
                                   ),
@@ -509,62 +356,64 @@ class _FlowModePageState extends State<FlowModePage>
                                       decoration: InputDecoration(
                                         contentPadding:
                                             const EdgeInsets.symmetric(
-                                              vertical: 4,
-                                            ),
+                                                vertical: 4),
                                         fillColor: Colors.white,
                                         enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                           borderSide: const BorderSide(
-                                            color: AppColors.surfaceBorder,
-                                          ),
+                                              color: AppColors.surfaceBorder),
                                         ),
                                         focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                           borderSide: const BorderSide(
-                                            color: AppColors.primary,
-                                            width: 1.5,
-                                          ),
+                                              color: AppColors.primary,
+                                              width: 1.5),
                                         ),
                                       ),
                                       onChanged: (v) {
                                         _onBpmChanged(v);
-                                        final p = int.tryParse(v);
-                                        if (p != null && p >= 40 && p <= 240) {
-                                          setSheetState(() => _bpm = p);
-                                        }
+                                        setSheetState(() {});
                                       },
                                       onSubmitted: (v) {
-                                        final p = int.tryParse(v) ?? _bpm;
-                                        final clamped = p.clamp(40, 240);
-                                        _bpmTextController.text = clamped
-                                            .toString();
+                                        final p = int.tryParse(v) ??
+                                            _controller.bpm;
+                                        final clamped = p.clamp(40, 180);
+                                        _bpmTextController.text =
+                                            clamped.toString();
                                         _onBpmChanged(clamped.toString());
-                                        setSheetState(() => _bpm = clamped);
+                                        setSheetState(() {});
                                       },
                                     ),
                                   ),
                                 ],
                               ),
+                              Text(
+                                'I WAV sono resi a 70 BPM: a 70 la sequenza è '
+                                'perfettamente continua.',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary
+                                      .withValues(alpha: 0.7),
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
                               const SizedBox(height: 24),
 
-                              // ── Slot Count (+ / -) ───────────────────────
-                              _buildSectionTitle('NUMERO DI MOVIMENTI'),
+                              // ── Count (measures / cells) ─────────────────
+                              _buildSectionTitle(_countLabel),
                               const SizedBox(height: 8),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   _buildCounterButton(
                                     icon: Icons.remove_rounded,
-                                    onPressed: _slotsCount > 2
+                                    onPressed: _controller.count > 1
                                         ? () {
-                                            _slotsCount--;
-                                            setState(() => _slotsCount);
-                                            setSheetState(() => _slotsCount);
-                                            _generateNewRhythm();
+                                            _controller
+                                                .setCount(_controller.count - 1);
+                                            setSheetState(() {});
                                           }
                                         : null,
                                   ),
@@ -572,7 +421,7 @@ class _FlowModePageState extends State<FlowModePage>
                                     width: 70,
                                     alignment: Alignment.center,
                                     child: Text(
-                                      '$_slotsCount',
+                                      '${_controller.count}',
                                       style: const TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w900,
@@ -582,12 +431,11 @@ class _FlowModePageState extends State<FlowModePage>
                                   ),
                                   _buildCounterButton(
                                     icon: Icons.add_rounded,
-                                    onPressed: _slotsCount < 7
+                                    onPressed: _controller.count < 12
                                         ? () {
-                                            _slotsCount++;
-                                            setState(() => _slotsCount);
-                                            setSheetState(() => _slotsCount);
-                                            _generateNewRhythm();
+                                            _controller
+                                                .setCount(_controller.count + 1);
+                                            setSheetState(() {});
                                           }
                                         : null,
                                   ),
@@ -595,7 +443,11 @@ class _FlowModePageState extends State<FlowModePage>
                               ),
                               const SizedBox(height: 24),
 
-                              // ── Auto-Generation & Random Speed Slider ─────
+                              // ── Figuration picker (switches with Ottave) ─
+                              _buildFigurationPicker(setSheetState),
+                              const SizedBox(height: 24),
+
+                              // ── Auto-variation ───────────────────────────
                               Row(
                                 children: [
                                   _buildSectionTitle('GENERAZIONE AUTOMATICA'),
@@ -605,8 +457,7 @@ class _FlowModePageState extends State<FlowModePage>
                                     activeThumbColor: AppColors.primary,
                                     onChanged: (val) {
                                       setSheetState(
-                                        () => _isAutoGenerateEnabled = val,
-                                      );
+                                          () => _isAutoGenerateEnabled = val);
                                       _onAutoGenerateToggled(val);
                                     },
                                   ),
@@ -626,8 +477,7 @@ class _FlowModePageState extends State<FlowModePage>
                                         inactiveColor: AppColors.inactiveTrack,
                                         onChanged: (v) {
                                           setSheetState(
-                                            () => _autoGenerateSeconds = v,
-                                          );
+                                              () => _autoGenerateSeconds = v);
                                           _onAutoGenerateSpeedChanged(v);
                                         },
                                       ),
@@ -647,7 +497,8 @@ class _FlowModePageState extends State<FlowModePage>
                                   child: Text(
                                     _getSpeedLabel(_autoGenerateSeconds),
                                     style: TextStyle(
-                                      color: AppColors.textSecondary.withValues(alpha: 0.8),
+                                      color: AppColors.textSecondary
+                                          .withValues(alpha: 0.8),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       fontStyle: FontStyle.italic,
@@ -655,252 +506,8 @@ class _FlowModePageState extends State<FlowModePage>
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: 24),
-
-                              // ── Figuration Grid Selector ───────────────────
-                              Row(
-                                children: [
-                                  _buildSectionTitle('FIGURAZIONI RITMICHE'),
-                                  const Spacer(),
-                                  TextButton(
-                                    onPressed: () {
-                                      setSheetState(() {
-                                        final allOn = _enabledAssets.values
-                                            .contains(false);
-                                        for (var k in _enabledAssets.keys) {
-                                          _enabledAssets[k] = allOn;
-                                        }
-                                      });
-                                      setState(() {});
-                                      _generateNewRhythm();
-                                    },
-                                    child: const Text(
-                                      'Tutte / Nessuna',
-                                      style: TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 4,
-                                      mainAxisSpacing: 10,
-                                      crossAxisSpacing: 10,
-                                      childAspectRatio: 1.0,
-                                    ),
-                                itemCount: _rhythmAssets.length,
-                                itemBuilder: (context, idx) {
-                                  final path = _rhythmAssets[idx];
-                                  final isEnabled =
-                                      _enabledAssets[path] ?? false;
-
-                                  return GestureDetector(
-                                    onTap: () {
-                                      setSheetState(() {
-                                        _enabledAssets[path] = !isEnabled;
-                                      });
-                                      setState(() {});
-                                      _generateNewRhythm();
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 150,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: isEnabled
-                                              ? AppColors.primary
-                                              : AppColors.surfaceBorder,
-                                          width: isEnabled ? 2.5 : 1.0,
-                                        ),
-                                        boxShadow: isEnabled
-                                            ? [
-                                                BoxShadow(
-                                                  color: AppColors.primary
-                                                      .withValues(alpha: 0.15),
-                                                  blurRadius: 6,
-                                                  spreadRadius: 1,
-                                                ),
-                                              ]
-                                            : null,
-                                      ),
-                                      child: Stack(
-                                        children: [
-                                          Center(
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(
-                                                6.0,
-                                              ),
-                                              child: Opacity(
-                                                opacity: isEnabled ? 1.0 : 0.4,
-                                                child: Image.asset(
-                                                  path,
-                                                  fit: BoxFit.contain,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          if (isEnabled)
-                                            Positioned(
-                                              top: 4,
-                                              right: 4,
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  2,
-                                                ),
-                                                decoration: const BoxDecoration(
-                                                  color: AppColors.primary,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: const Icon(
-                                                  Icons.check_rounded,
-                                                  color: Colors.white,
-                                                  size: 10,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 24),
-
-                              // ── Metronome & Instrument ───────────────────
-                              _buildSectionTitle('AUDIO CONTROLS'),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        final newVal = !_playbackService
-                                            .isMetronomeEnabled;
-                                        setSheetState(() {});
-                                        _playbackService.updateSettings(
-                                          isMetronomeEnabled: newVal,
-                                        );
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              _playbackService
-                                                  .isMetronomeEnabled
-                                              ? AppColors.primary
-                                                    .withValues(alpha: 0.1)
-                                              : Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color:
-                                                _playbackService
-                                                    .isMetronomeEnabled
-                                                ? AppColors.primary
-                                                : AppColors.surfaceBorder,
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              _playbackService
-                                                      .isMetronomeEnabled
-                                                  ? Icons.graphic_eq_rounded
-                                                  : Icons.volume_off_rounded,
-                                              color:
-                                                  _playbackService
-                                                      .isMetronomeEnabled
-                                                  ? AppColors.primary
-                                                  : AppColors.textSecondary,
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Metronomo',
-                                              style: TextStyle(
-                                                color:
-                                                    _playbackService
-                                                        .isMetronomeEnabled
-                                                    ? AppColors.primary
-                                                    : AppColors.textSecondary,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: AppColors.surfaceBorder,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: DropdownButton<String>(
-                                      value: _playbackService.soundInstrument,
-                                      dropdownColor: Colors.white,
-                                      underline: const SizedBox(),
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      items: const [
-                                        DropdownMenuItem(
-                                          value: 'silent',
-                                          child: Text('🔇 Silent'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'snare',
-                                          child: Text('🥁 Snare'),
-                                        ),
-                                        DropdownMenuItem(
-                                          value: 'stick',
-                                          child: Text('🥢 Stick'),
-                                        ),
-                                      ],
-                                      onChanged: (v) {
-                                        if (v != null) {
-                                          setSheetState(() {});
-                                          _playbackService.updateSettings(
-                                            soundInstrument: v,
-                                          );
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
                               const SizedBox(height: 32),
 
-                              // ── Buttons ──────────────────────────────────
                               SizedBox(
                                 width: double.infinity,
                                 height: 50,
@@ -918,13 +525,11 @@ class _FlowModePageState extends State<FlowModePage>
                                   child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(
-                                        Icons.shuffle_rounded,
-                                        color: Colors.white,
-                                      ),
+                                      Icon(Icons.shuffle_rounded,
+                                          color: Colors.white),
                                       SizedBox(width: 10),
                                       Text(
-                                        'GENERATE RHYTHM',
+                                        'GENERA RITMO',
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
@@ -1000,40 +605,322 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ── Quick slot-count stepper (main screen, outside the settings sheet) ───
-  void _incrementSlotCount() {
-    if (_slotsCount >= 7) return;
-    setState(() => _slotsCount++);
-    _generateNewRhythm();
+  // ── Sound selector (Beatter / Silenzio) ────────────────────────────────────
+  Widget _buildSoundSelector({VoidCallback? onChanged, bool compact = false}) {
+    Widget option(FlowSoundMode mode, IconData icon, String label) {
+      final bool selected = _controller.soundMode == mode;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            _controller.setSoundMode(mode);
+            onChanged?.call();
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: EdgeInsets.symmetric(vertical: compact ? 8 : 12),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppColors.primary
+                  : Colors.white.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(compact ? 10 : 12),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.surfaceBorder,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: compact ? 15 : 18,
+                  color: selected ? Colors.white : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? Colors.white : AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: compact ? 12 : 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        option(FlowSoundMode.beatter, Icons.graphic_eq_rounded, 'Beatter'),
+        const SizedBox(width: 10),
+        option(FlowSoundMode.silence, Icons.volume_off_rounded, 'Silenzio'),
+      ],
+    );
   }
 
-  void _decrementSlotCount() {
-    if (_slotsCount <= 2) return;
-    setState(() => _slotsCount--);
-    _generateNewRhythm();
+  // ── Figuration picker (list switches with the Ottave set) ──────────────────
+  Widget _buildFigurationPicker(StateSetter setSheetState) {
+    final figs = _controller.pickerFigurations;
+    final title = _controller.ottaveMode
+        ? 'FIGURAZIONI OTTAVE (3/8)'
+        : 'FIGURAZIONI QUARTI (1/4)';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _buildSectionTitle(title)),
+            TextButton(
+              onPressed: figs.isEmpty
+                  ? null
+                  : () {
+                      final allOn = figs.every(_controller.isEnabled);
+                      _controller.setAllEnabled(!allOn);
+                      setSheetState(() {});
+                    },
+              child: const Text(
+                'Tutte / Nessuna',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (figs.isEmpty)
+          Text(
+            'Nessuna figurazione disponibile.',
+            style: TextStyle(
+              color: AppColors.textSecondary.withValues(alpha: 0.8),
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: figs.length,
+            itemBuilder: (context, idx) {
+              final fig = figs[idx];
+              final isEnabled = _controller.isEnabled(fig);
+
+              return GestureDetector(
+                onTap: () {
+                  _controller.toggleEnabled(fig);
+                  setSheetState(() {});
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isEnabled
+                          ? AppColors.primary
+                          : AppColors.surfaceBorder,
+                      width: isEnabled ? 2.5 : 1.0,
+                    ),
+                    boxShadow: isEnabled
+                        ? [
+                            BoxShadow(
+                              color:
+                                  AppColors.primary.withValues(alpha: 0.15),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(6.0),
+                          child: Opacity(
+                            opacity: isEnabled ? 1.0 : 0.4,
+                            child: Image.asset(
+                              fig.imageAsset,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stack) => Icon(
+                                Icons.music_note_rounded,
+                                color: AppColors.textMuted,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (isEnabled)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 10,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
   }
 
+  // ── On-screen quick toggles (Ottave + sound) ───────────────────────────────
+  Widget _buildTogglesRow() {
+    // Two compact rows keep every control fully labelled without ever
+    // overflowing on narrow phones: the Ottave + Metronome toggles on top,
+    // the Beatter/Silenzio selector below.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _buildOttavePill()),
+              const SizedBox(width: 8),
+              Expanded(child: _buildMetronomePill()),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _buildSoundSelector(compact: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetronomePill() {
+    final bool on = _controller.metronomeEnabled;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _controller.setMetronomeEnabled(!on);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: on ? AppColors.primary : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: on ? AppColors.primary : AppColors.surfaceBorder,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.timelapse_rounded,
+              size: 16,
+              color: on ? Colors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Metronomo',
+              style: TextStyle(
+                color: on ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOttavePill() {
+    final bool on = _controller.ottaveMode;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        _controller.setOttaveMode(!on);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: on ? AppColors.primary : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: on ? AppColors.primary : AppColors.surfaceBorder,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.music_note_rounded,
+              size: 15,
+              color: on ? Colors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Ottave',
+              style: TextStyle(
+                color: on ? Colors.white : AppColors.textSecondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Main-screen count stepper ──────────────────────────────────────────────
   Widget _buildSlotCountControl({
     bool isCompact = false,
     bool isVertical = false,
     double scale = 1.0,
   }) {
-    // Compact floor raised from 28 to 36 — the original shrank below common
-    // 44dp touch-target guidance on small landscape screens, a real problem
-    // for a control meant to be used hands-on-instrument.
     final double buttonSize = (isCompact ? 36.0 : 38.0) * scale;
     final minusButton = _buildCounterButton(
       icon: Icons.remove_rounded,
       size: buttonSize,
-      onPressed: _slotsCount > 2 ? _decrementSlotCount : null,
+      onPressed: _controller.count > 1
+          ? () => _controller.setCount(_controller.count - 1)
+          : null,
     );
     final plusButton = _buildCounterButton(
       icon: Icons.add_rounded,
       size: buttonSize,
-      onPressed: _slotsCount < 7 ? _incrementSlotCount : null,
+      onPressed: _controller.count < 12
+          ? () => _controller.setCount(_controller.count + 1)
+          : null,
     );
     final countLabel = Text(
-      '$_slotsCount',
+      '${_controller.count}',
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: (isCompact ? 13.0 : 16.0) * scale,
@@ -1042,10 +929,6 @@ class _FlowModePageState extends State<FlowModePage>
       ),
     );
 
-    // Vertical (narrow landscape side panel): stacked so the control never
-    // needs more width than a single button. Order is + on top, - on the
-    // bottom (mirrored from the portrait row) so the raise action sits
-    // closer to the top of the panel.
     if (isVertical) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -1069,7 +952,7 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ── Quick speed (BPM) slider (main screen, outside the settings sheet) ──
+  // ── Main-screen speed (BPM) slider ─────────────────────────────────────────
   Widget _buildSpeedSlider({
     bool isVertical = false,
     double verticalHeight = 110,
@@ -1082,9 +965,9 @@ class _FlowModePageState extends State<FlowModePage>
         overlayShape: RoundSliderOverlayShape(overlayRadius: 14 * scale),
       ),
       child: Slider(
-        value: _bpm.toDouble().clamp(40, 240),
+        value: _controller.bpm.toDouble().clamp(40, 180),
         min: 40,
-        max: 240,
+        max: 180,
         activeColor: AppColors.primary,
         inactiveColor: AppColors.inactiveTrack,
         onChanged: _onBpmSlider,
@@ -1110,18 +993,12 @@ class _FlowModePageState extends State<FlowModePage>
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.speed_rounded,
-            color: AppColors.textSecondary,
-            size: 16 * scale,
-          ),
+          Icon(Icons.speed_rounded,
+              color: AppColors.textSecondary, size: 16 * scale),
           _buildSpeedSlider(
-            isVertical: true,
-            verticalHeight: sliderHeight,
-            scale: scale,
-          ),
+              isVertical: true, verticalHeight: sliderHeight, scale: scale),
           Text(
-            '$_bpm',
+            '${_controller.bpm}',
             style: TextStyle(
               fontSize: 11 * scale,
               fontWeight: FontWeight.bold,
@@ -1134,18 +1011,15 @@ class _FlowModePageState extends State<FlowModePage>
 
     return Row(
       children: [
-        const Icon(
-          Icons.speed_rounded,
-          color: AppColors.textSecondary,
-          size: 18,
-        ),
+        const Icon(Icons.speed_rounded,
+            color: AppColors.textSecondary, size: 18),
         const SizedBox(width: 6),
         Expanded(child: _buildSpeedSlider()),
         const SizedBox(width: 6),
         SizedBox(
           width: 36,
           child: Text(
-            '$_bpm',
+            '${_controller.bpm}',
             textAlign: TextAlign.end,
             style: const TextStyle(
               fontSize: 13,
@@ -1158,7 +1032,7 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ── Empty State ─────────────────────────────────────────────────────────
+  // ── Empty state ─────────────────────────────────────────────────────────────
   Widget _buildEmptyState() {
     return const EmptyState(
       icon: Icons.music_note_rounded,
@@ -1166,43 +1040,34 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ── Rhythm Slots Grid Widget ──────────────────────────────────────────────
-  // All N slots are placed in a single responsive row.  Each tile's side
-  // length is calculated dynamically via _calcTileSize so they always fit
-  // within the available width — no horizontal overflow, ever.
-  Widget _buildSlotsGrid(bool isLandscape) {
-    final int n = _generatedSlots.length;
+  // ── Figuration tiles ────────────────────────────────────────────────────────
+  Widget _buildSlotsGrid() {
+    final items = _controller.sequence;
+    final int n = items.length;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const double outerPadding = 12.0;
-        final double gap = n <= 3 ? 12.0 : n <= 5 ? 10.0 : 8.0;
-        final double tileSize = _calcTileSize(constraints.maxWidth, n);
-        final double imagePadding = (tileSize * 0.10).clamp(4.0, 14.0);
+        final int perRow = n <= 4 ? math.max(n, 1) : (n <= 8 ? 4 : 5);
+        final double tileSize = _calcTileSize(constraints.maxWidth, perRow);
+        final double imagePadding = (tileSize * 0.12).clamp(4.0, 16.0);
         final double radius = (tileSize * 0.14).clamp(8.0, AppRadius.lg);
 
         return Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: outerPadding,
-              vertical: 20.0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
               children: [
-                for (int index = 0; index < n; index++) ...[
-                  if (index > 0) SizedBox(width: gap),
-                  KeyedSubtree(
-                    key: index < _slotKeys.length ? _slotKeys[index] : null,
-                    child: _buildSlotTile(
-                      index: index,
-                      tileSize: tileSize,
-                      imagePadding: imagePadding,
-                      radius: radius,
-                    ),
+                for (int index = 0; index < n; index++)
+                  _buildSlotTile(
+                    index: index,
+                    tileSize: tileSize,
+                    imagePadding: imagePadding,
+                    radius: radius,
                   ),
-                ],
               ],
             ),
           ),
@@ -1211,24 +1076,21 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ── Single Slot Tile ─────────────────────────────────────────────────────
   Widget _buildSlotTile({
     required int index,
     required double tileSize,
     required double imagePadding,
     required double radius,
   }) {
-    final slot = _generatedSlots[index];
-    final bool isActive = _playbackService.isPlaying &&
-        _playbackService.currentElementIndex == index;
+    final item = _controller.sequence[index];
+    final bool isActive =
+        _controller.isPlaying && _controller.activeIndex == index;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeInOut,
-      // width/height animate when tileSize changes (slot-count change)
       width: tileSize,
       height: tileSize,
-      // scale animates for the active-beat highlight
       transform: Matrix4.identity()
         ..translateByDouble(tileSize / 2, tileSize / 2, 0, 1)
         ..scaleByDouble(isActive ? 1.06 : 1.0, isActive ? 1.06 : 1.0, 1, 1)
@@ -1257,8 +1119,13 @@ class _FlowModePageState extends State<FlowModePage>
           child: Padding(
             padding: EdgeInsets.all(imagePadding),
             child: Image.asset(
-              slot.assetPath,
+              item.figuration.imageAsset,
               fit: BoxFit.contain,
+              errorBuilder: (context, error, stack) => Icon(
+                Icons.music_note_rounded,
+                color: AppColors.textMuted,
+                size: tileSize * 0.4,
+              ),
             ),
           ),
         ),
@@ -1266,15 +1133,15 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ── Metronome Beat Pulsing Indicator ──────────────────────────────────────
+  // ── Metronome / beat indicator ──────────────────────────────────────────────
   Widget _buildMetronomeIndicator() {
     final textTheme = Theme.of(context).textTheme;
 
-    if (!_playbackService.isPlaying) {
+    if (!_controller.isPlaying) {
       return const SizedBox(height: 52);
     }
 
-    final beatNum = _currentBeatNumber;
+    final beatNum = _currentMovimentoNumber;
 
     return AnimatedBuilder(
       animation: _beatPulseController,
@@ -1284,11 +1151,13 @@ class _FlowModePageState extends State<FlowModePage>
           scale: 1.0 + t * 0.05,
           child: Container(
             margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl, vertical: AppSpacing.xs),
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.1 + t * 0.06),
               borderRadius: BorderRadius.circular(AppRadius.xl - 4),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.2 + t * 0.15)),
+              border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.2 + t * 0.15)),
             ),
             child: child,
           ),
@@ -1297,19 +1166,23 @@ class _FlowModePageState extends State<FlowModePage>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.graphic_eq_rounded, color: AppColors.primary, size: 20),
+          const Icon(Icons.graphic_eq_rounded,
+              color: AppColors.primary, size: 20),
           const SizedBox(width: AppSpacing.xs),
           Text(
             'MOVIMENTO: ',
-            style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary, letterSpacing: 1.1),
+            style: textTheme.labelMedium
+                ?.copyWith(color: AppColors.textSecondary, letterSpacing: 1.1),
           ),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 150),
-            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+            transitionBuilder: (child, animation) =>
+                ScaleTransition(scale: animation, child: child),
             child: Text(
               '$beatNum',
               key: ValueKey<int>(beatNum),
-              style: textTheme.displaySmall?.copyWith(color: AppColors.primary, fontSize: 24),
+              style: textTheme.displaySmall
+                  ?.copyWith(color: AppColors.primary, fontSize: 24),
             ),
           ),
         ],
@@ -1317,9 +1190,7 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  //  BUILD
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final bool isLandscape = context.isLandscape;
@@ -1345,15 +1216,17 @@ class _FlowModePageState extends State<FlowModePage>
           child: TwoPaneLayout(
             portrait: (context) => Column(
               children: [
+                _buildTogglesRow(),
                 _buildMetronomeIndicator(),
-                Expanded(child: _buildGridArea(isLandscape)),
+                Expanded(child: _buildGridArea()),
                 _buildControlsBar(isLandscape),
               ],
             ),
             landscapePrimary: (context) => Column(
               children: [
+                _buildTogglesRow(),
                 _buildMetronomeIndicator(),
-                Expanded(child: _buildGridArea(isLandscape)),
+                Expanded(child: _buildGridArea()),
               ],
             ),
             landscapeSecondary: (context) => _buildControlsBar(isLandscape),
@@ -1365,52 +1238,44 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  Widget _buildGridArea(bool isLandscape) {
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : _generatedSlots.isEmpty
-        ? _buildEmptyState()
-        : _buildSlotsGrid(isLandscape);
+  Widget _buildGridArea() {
+    if (!_controller.isReady) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (!_controller.hasSequence) {
+      return _buildEmptyState();
+    }
+    return _buildSlotsGrid();
   }
 
-  // Landscape side panel content: adapts its spacing/slider/button size to
-  // the available width and height, so it stays tiny (but overflow-safe) on
-  // very small phones and grows comfortably on tablets/large screens instead
-  // of staying pinned to phone-sized buttons. Wrapped in a scroll view as a
-  // safety net so it can never hard-overflow, even on very short screens.
   double _landscapePanelScale(double width, double height) {
     final double widthT = ((width - 110.0) / 140.0).clamp(0.0, 1.0);
     final double heightT = ((height - 320.0) / 380.0).clamp(0.0, 1.0);
     final double t = math.min(widthT, heightT);
-    return 1.0 + t * 0.5; // 1.0 (small screens) .. 1.5 (large screens)
+    return 1.0 + t * 0.5;
   }
 
   Widget _buildLandscapeControlsColumn(bool isPlaying) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double availableHeight = constraints.maxHeight;
-        final double scale = _landscapePanelScale(
-          constraints.maxWidth,
-          availableHeight,
-        );
-        final double sliderHeight =
-            (availableHeight < 260
+        final double scale =
+            _landscapePanelScale(constraints.maxWidth, availableHeight);
+        final double sliderHeight = (availableHeight < 260
                 ? 55.0
                 : availableHeight < 340
-                ? 80.0
-                : 110.0) *
+                    ? 80.0
+                    : 110.0) *
             scale;
         final double gap = (availableHeight < 260 ? 6.0 : 12.0) * scale;
 
         final Widget autoButton = _buildControlButton(
-          icon: Icons.autorenew_rounded,
-          color: _isAutoGenerateEnabled ? AppColors.primary : AppColors.textSecondary,
-          onTap: () {
-            setState(() {
-              _onAutoGenerateToggled(!_isAutoGenerateEnabled);
-            });
-          },
-          label: 'Auto',
+          icon: Icons.auto_awesome_rounded,
+          color: _isAutoGenerateEnabled
+              ? AppColors.primary
+              : AppColors.textSecondary,
+          onTap: () => _onAutoGenerateToggled(!_isAutoGenerateEnabled),
+          label: 'AutoMix',
           isCompact: true,
           scale: scale,
         );
@@ -1418,7 +1283,7 @@ class _FlowModePageState extends State<FlowModePage>
         final Widget generateButton = _buildControlButton(
           icon: Icons.shuffle_rounded,
           color: AppColors.primary,
-          onTap: () => _generateNewRhythm(),
+          onTap: _generateNewRhythm,
           label: 'Generate',
           isCompact: true,
           scale: scale,
@@ -1437,18 +1302,12 @@ class _FlowModePageState extends State<FlowModePage>
                 autoButton,
                 SizedBox(height: gap),
                 _buildSlotCountControl(
-                  isCompact: true,
-                  isVertical: true,
-                  scale: scale,
-                ),
+                    isCompact: true, isVertical: true, scale: scale),
                 SizedBox(height: gap),
                 _buildPlayButton(isPlaying, isCompact: true, scale: scale),
                 SizedBox(height: gap),
                 _buildSpeedControl(
-                  isCompact: true,
-                  sliderHeight: sliderHeight,
-                  scale: scale,
-                ),
+                    isCompact: true, sliderHeight: sliderHeight, scale: scale),
                 SizedBox(height: gap),
                 generateButton,
               ],
@@ -1459,17 +1318,13 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  // ── Controls Bar ─────────────────────────────────────────────────────────
-  // Portrait: a bottom bar with buttons in a row (plus a quick slot-count
-  // stepper and speed slider above it). Landscape: a side panel with
-  // everything stacked in a column, so the notation grid keeps full height.
   Widget _buildControlsBar(bool isLandscape) {
-    final bool isPlaying = _playbackService.isPlaying;
+    final bool isPlaying = _controller.isPlaying;
 
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: isLandscape ? 8 : 24,
-        vertical: isLandscape ? 16 : 16,
+        vertical: 16,
       ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.6),
@@ -1499,20 +1354,19 @@ class _FlowModePageState extends State<FlowModePage>
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildControlButton(
-                      icon: Icons.autorenew_rounded,
-                      color: _isAutoGenerateEnabled ? AppColors.primary : AppColors.textSecondary,
-                      onTap: () {
-                        setState(() {
-                          _onAutoGenerateToggled(!_isAutoGenerateEnabled);
-                        });
-                      },
-                      label: 'Auto',
+                      icon: Icons.auto_awesome_rounded,
+                      color: _isAutoGenerateEnabled
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      onTap: () =>
+                          _onAutoGenerateToggled(!_isAutoGenerateEnabled),
+                      label: 'AutoMix',
                     ),
                     _buildPlayButton(isPlaying),
                     _buildControlButton(
                       icon: Icons.shuffle_rounded,
                       color: AppColors.primary,
-                      onTap: () => _generateNewRhythm(),
+                      onTap: _generateNewRhythm,
                       label: 'Generate',
                     ),
                   ],
@@ -1527,7 +1381,7 @@ class _FlowModePageState extends State<FlowModePage>
     bool isCompact = false,
     double scale = 1.0,
   }) {
-    final isDisabled = _generatedSlots.isEmpty;
+    final isDisabled = !_controller.hasSequence;
     final double size = (isCompact ? 44.0 : 56.0) * scale;
 
     return Material(
@@ -1549,10 +1403,13 @@ class _FlowModePageState extends State<FlowModePage>
             shape: BoxShape.circle,
             gradient: LinearGradient(
               colors: isDisabled
-                  ? [AppColors.surfaceBorder, AppColors.surfaceBorder.withValues(alpha: 0.5)]
+                  ? [
+                      AppColors.surfaceBorder,
+                      AppColors.surfaceBorder.withValues(alpha: 0.5)
+                    ]
                   : isPlaying
-                  ? [AppColors.tertiary, AppColors.primary]
-                  : [AppColors.primary, AppColors.primaryContainer],
+                      ? [AppColors.tertiary, AppColors.primary]
+                      : [AppColors.primary, AppColors.primaryContainer],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1585,10 +1442,9 @@ class _FlowModePageState extends State<FlowModePage>
     bool isCompact = false,
     double scale = 1.0,
   }) {
-    // Compact floor raised from 34 to 40 for the same touch-target reason
-    // as the slot-count stepper above.
     final double size = (isCompact ? 40.0 : 44.0) * scale;
-    final BorderRadius radius = BorderRadius.circular(isCompact ? AppRadius.sm + 2 : AppRadius.md);
+    final BorderRadius radius =
+        BorderRadius.circular(isCompact ? AppRadius.sm + 2 : AppRadius.md);
 
     return Material(
       color: Colors.transparent,
@@ -1610,9 +1466,11 @@ class _FlowModePageState extends State<FlowModePage>
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.08),
                   borderRadius: radius,
-                  border: Border.all(color: color.withValues(alpha: 0.2), width: 1.2),
+                  border: Border.all(
+                      color: color.withValues(alpha: 0.2), width: 1.2),
                 ),
-                child: Icon(icon, color: color, size: (isCompact ? 18.0 : 22.0) * scale),
+                child: Icon(icon,
+                    color: color, size: (isCompact ? 18.0 : 22.0) * scale),
               ),
               const SizedBox(height: AppSpacing.xxs),
               Text(

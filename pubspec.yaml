@@ -88,6 +88,17 @@ flutter:
     - assets/audio/figurazioni_quarti_png/
     - assets/logos/logo_beatter.png
     - assets/icon/
+    # Real figurations for Flow Mode (WAV renderings + notation images).
+    # MIDI is intentionally NOT bundled: it is unused today and its durations
+    # are already encoded per category in FigurationCategory.
+    - "assets/application/1_4/1_4 WAV/"
+    - "assets/application/1_4/FIGURAZIONI 1_4/"
+    - "assets/application/2_4/2_4 WAV/"
+    - "assets/application/2_4/FIGURAZIONI 2_4/"
+    - "assets/application/4_4/4_4 WAV/"
+    - "assets/application/4_4/FIGURAZIONI 4_4/"
+    - "assets/application/OTTAVI/OTTAVI WAV/"
+    - "assets/application/OTTAVI/FIGURAZIONI OTTAVI/"
 
   # To add assets to your application, add an assets section, like this:
   # assets:
