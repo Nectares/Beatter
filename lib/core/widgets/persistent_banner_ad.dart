@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../ads/ads_support.dart';
 import '../../theme/app_colors.dart';
 
 /// A persistent banner advertisement widget that loads and displays an AdMob banner.
@@ -24,6 +25,10 @@ class _PersistentBannerAdState extends State<PersistentBannerAd> {
   }
 
   void _loadAd() {
+    // AdMob is Android/iOS-only; skip entirely elsewhere (web, desktop) so we
+    // never construct a BannerAd whose platform channel would throw.
+    if (!adsSupported) return;
+
     // Determine the Ad Unit ID based on platform and debug mode.
     final String adUnitId;
     if (kDebugMode) {
