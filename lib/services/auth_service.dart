@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../core/di/service_locator.dart';
 import '../core/errors/app_failure.dart';
 import '../domain/entities/auth_user.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/profile_repository.dart';
+import '../domain/services/account_deletion_service.dart';
 import '../domain/services/analytics_tracker.dart';
 import '../domain/services/crash_reporter.dart';
 
@@ -174,6 +177,41 @@ class AuthService {
     unawaited(analytics.setUserId(null));
     unawaited(crash.setUserId(null));
     await _auth.signOut();
+  }
+
+  /// Permanently deletes the signed-in account.
+  ///
+  /// The destructive work happens entirely server-side: this asks the
+  /// `deleteAccount` Cloud Function to erase the user's Firestore data,
+  /// Storage files and Auth record (in that order), and only when the server
+  /// confirms does it tear down the local session — sign out, then wipe every
+  /// on-device cache (the shared_preferences-backed libraries, settings and
+  /// migration flags). The caller is then expected to route back to the start
+  /// screen.
+  ///
+  /// Throws an [AppFailure] on failure (e.g. [NetworkFailure] when offline);
+  /// nothing local is cleared unless the server-side deletion succeeded.
+  static Future<void> deleteAccount() async {
+    await ServiceLocator.get<AccountDeletionService>().deleteAccount();
+    // Server confirmed — safe to drop the local session and cached data.
+    await logout();
+    await _clearLocalData();
+  }
+
+  /// Removes every trace of on-device user data. Called after a confirmed
+  /// account deletion so no personal data survives locally (Play/App Store
+  /// requirement). shared_preferences is the single backing store for the
+  /// local libraries, settings and gamification cache, so clearing it wipes
+  /// them all in one shot.
+  static Future<void> _clearLocalData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (e, s) {
+      // Best-effort: never let a local-cache hiccup mask a successful
+      // server-side deletion.
+      unawaited(ServiceLocator.get<CrashReporter>().recordError(e, s));
+    }
   }
 
   static AuthUser? get currentUser => _auth.currentUser;

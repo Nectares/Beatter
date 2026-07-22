@@ -339,6 +339,10 @@ Install the store-delivered build (not a local one) on a physical device:
 - [ ] Firestore reads and writes
 - [ ] Storage reads (and writes if applicable)
 - [ ] Cloud Functions calls succeed
+- [ ] **Account deletion** (Play/App Store requirement): Settings → Account →
+      Elimina account → double-confirm; user is signed out and returned to the
+      login screen, and Firestore/Storage no longer hold the uid's data. See
+      [`ACCOUNT_DELETION.md`](ACCOUNT_DELETION.md).
 - [ ] App Check: no `app-check` permission errors; Firebase Console → App Check
       shows verified requests (enforcement is opt-in per service — verify
       metrics before enforcing)

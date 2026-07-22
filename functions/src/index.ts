@@ -22,6 +22,10 @@ import { newlyUnlocked } from "./logic/achievements";
 import { nextStreakDays, totalFor } from "./logic/points";
 import { GLOBAL_BOARD, paths, weeklyBoardId } from "./paths";
 
+// Authenticated account deletion (Firestore → Storage → Auth). Pinned to
+// europe-west4 in its own module; re-exported so `firebase deploy` picks it up.
+export { deleteAccount } from "./account";
+
 initializeApp();
 // europe-west4 is required for Firestore triggers: the (default) database
 // lives in the eur3 multi-region, whose Eventarc location is europe-west4.

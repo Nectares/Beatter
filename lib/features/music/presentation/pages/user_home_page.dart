@@ -8,6 +8,7 @@ import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../core/widgets/decorative_glow_background.dart';
 import '../../../../core/widgets/feature_card.dart';
 import '../../../../core/widgets/toast.dart';
+import '../../../settings/presentation/pages/settings_page.dart';
 
 import '../navigation/main_navigation_shell.dart';
 
@@ -122,6 +123,19 @@ class UserHomePage extends StatelessWidget {
                             ],
                           );
                         },
+                      ),
+                      const Spacer(),
+                      // Opens user settings (Account management, incl. account
+                      // deletion).
+                      IconButton(
+                        icon: const Icon(Icons.settings_outlined),
+                        color: AppColors.textSecondary,
+                        tooltip: 'Impostazioni',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SettingsPage(),
+                          ),
+                        ),
                       ),
                     ],
                   ),

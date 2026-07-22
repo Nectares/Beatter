@@ -10,7 +10,16 @@ export const paths = {
   achievements: (uid: string) => `users/${uid}/achievements`,
   pointHistory: (uid: string) => `users/${uid}/pointHistory`,
   leaderboardEntries: (boardId: string) => `leaderboards/${boardId}/entries`,
+  usernames: () => `usernames`,
 } as const;
+
+/**
+ * Firestore collection group that contains a user's per-board leaderboard
+ * rows. Every entry document stores its owner's `uid`, so a collection-group
+ * query by that field reaches the global board and every weekly board at once
+ * without having to enumerate board ids.
+ */
+export const LEADERBOARD_ENTRIES_GROUP = "entries";
 
 /** `weekly-2026-28` style board id for the ISO week containing `when`. */
 export function weeklyBoardId(when: Date): string {

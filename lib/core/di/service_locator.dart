@@ -6,6 +6,7 @@ import '../../data/firebase/crashlytics_reporter.dart';
 import '../../data/firebase/firebase_analytics_tracker.dart';
 import '../../data/firebase/firebase_auth_repository.dart';
 import '../../data/firebase/firebase_media_storage_repository.dart';
+import '../../data/firebase/functions_account_deletion_service.dart';
 import '../../data/firebase/firestore_document_store.dart';
 import '../../data/firebase/firestore_gamification_repositories.dart';
 import '../../data/firebase/firestore_paths.dart';
@@ -23,6 +24,7 @@ import '../../domain/repositories/media_storage_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../../domain/repositories/workout_repository.dart';
+import '../../domain/services/account_deletion_service.dart';
 import '../../domain/services/analytics_tracker.dart';
 import '../../domain/services/crash_reporter.dart';
 import '../../models/composition.dart';
@@ -84,6 +86,8 @@ abstract final class ServiceLocator {
         () => FirestoreLeaderboardRepository());
     _getIt.registerLazySingleton<MediaStorageRepository>(
         () => FirebaseMediaStorageRepository());
+    _getIt.registerLazySingleton<AccountDeletionService>(
+        () => FunctionsAccountDeletionService());
     _getIt.registerLazySingleton<WorkoutRepository>(() => FirestoreWorkoutRepository(
           statistics: get<StatisticsRepository>(),
           crashReporter: get<CrashReporter>(),
@@ -112,6 +116,8 @@ abstract final class ServiceLocator {
         () => LocalLeaderboardRepository(engine, () => auth.currentUser));
     _getIt.registerLazySingleton<MediaStorageRepository>(
         () => const UnavailableMediaStorageRepository());
+    _getIt.registerLazySingleton<AccountDeletionService>(
+        () => const LocalAccountDeletionService());
     _getIt.registerLazySingleton<WorkoutRepository>(
         () => LocalWorkoutRepository(engine));
     _getIt.registerLazySingleton<DocumentStoreFactory>(

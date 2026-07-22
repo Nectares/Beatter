@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/errors/app_failure.dart';
 import '../../domain/repositories/media_storage_repository.dart';
+import '../../domain/services/account_deletion_service.dart';
 import '../../domain/services/analytics_tracker.dart';
 import '../../domain/services/crash_reporter.dart';
 
@@ -69,4 +70,16 @@ class UnavailableMediaStorageRepository implements MediaStorageRepository {
   @override
   Future<String> uploadPdfExport(String uid, String fileName, Uint8List bytes) async =>
       _unavailable();
+}
+
+/// Local mode has no server-side account to erase: there is only on-device
+/// data, which the caller ([AuthService.deleteAccount]) clears from
+/// SharedPreferences right after this returns. So the deletion "succeeds"
+/// with nothing to do — keeping the delete-account flow available (and the
+/// UI identical) whether or not a Firebase backend is configured.
+class LocalAccountDeletionService implements AccountDeletionService {
+  const LocalAccountDeletionService();
+
+  @override
+  Future<void> deleteAccount() async {}
 }
