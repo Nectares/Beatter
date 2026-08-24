@@ -796,15 +796,15 @@ class _FlowModePageState extends State<FlowModePage>
   // ── On-screen quick toggles (Ottave + sound) ───────────────────────────────
   Widget _buildTogglesRow() {
     // Two compact rows keep every control fully labelled without ever
-    // overflowing on narrow phones: the Ottave + Metronome toggles on top,
-    // the Beatter/Silenzio selector below.
+    // overflowing on narrow phones: the 1/4 ↔ 3/8 switch + Metronome toggle on
+    // top, the Beatter/Silenzio selector below.
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: Column(
         children: [
           Row(
             children: [
-              Expanded(child: _buildOttavePill()),
+              Expanded(child: _buildOttaveSwitch()),
               const SizedBox(width: 8),
               Expanded(child: _buildMetronomePill()),
             ],
@@ -857,43 +857,70 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
-  Widget _buildOttavePill() {
+  /// Sliding switch between the two figuration sets: 1/4 on the left,
+  /// 3/8 (ottave) on the right. Height matches the Metronome pill so the two
+  /// controls line up in the row.
+  Widget _buildOttaveSwitch() {
     final bool on = _controller.ottaveMode;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        _controller.setOttaveMode(!on);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: on ? AppColors.primary : Colors.white.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: on ? AppColors.primary : AppColors.surfaceBorder,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.music_note_rounded,
-              size: 15,
-              color: on ? Colors.white : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              'Ottave',
+
+    Widget side(String label, bool selected, bool value) {
+      return Expanded(
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (selected) return;
+            HapticFeedback.selectionClick();
+            _controller.setOttaveMode(value);
+          },
+          child: Center(
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 150),
               style: TextStyle(
-                color: on ? Colors.white : AppColors.textSecondary,
+                color: selected ? Colors.white : AppColors.textSecondary,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
+              child: Text(label),
             ),
-          ],
+          ),
         ),
+      );
+    }
+
+    return Container(
+      height: 35,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.surfaceBorder, width: 1.5),
+      ),
+      child: Stack(
+        children: [
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              heightFactor: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: Row(
+              children: [
+                side('1/4', !on, false),
+                side('3/8', on, true),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
