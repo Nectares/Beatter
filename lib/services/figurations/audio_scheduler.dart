@@ -14,8 +14,45 @@ import 'dart:async';
 ///  * On loop, the origin is advanced by exactly one cycle length in
 ///    milliseconds instead of resetting the stopwatch — so no rounding error
 ///    accumulates across a long session (no drift).
+/// Monotonic time source driving [AudioScheduler].
+///
+/// Production uses [Stopwatch]: it is monotonic, so it is immune to wall-clock
+/// adjustments (an NTP correction, the user changing the device clock) that
+/// would otherwise shift every scheduled beat. Tests inject a controllable
+/// implementation so timing can be asserted deterministically instead of by
+/// sleeping in real time.
+abstract class SchedulerClock {
+  /// Milliseconds elapsed while started, excluding paused spans.
+  double get elapsedMs;
+
+  void start();
+  void stop();
+  void reset();
+}
+
+/// The production clock: a plain monotonic [Stopwatch].
+class StopwatchClock implements SchedulerClock {
+  final Stopwatch _sw = Stopwatch();
+
+  @override
+  double get elapsedMs => _sw.elapsedMilliseconds.toDouble();
+
+  @override
+  void start() => _sw.start();
+
+  @override
+  void stop() => _sw.stop();
+
+  @override
+  void reset() => _sw.reset();
+}
+
 class AudioScheduler {
-  AudioScheduler({required this.onEvent, this.pollInterval = _defaultPoll});
+  AudioScheduler({
+    required this.onEvent,
+    this.pollInterval = _defaultPoll,
+    SchedulerClock? clock,
+  }) : _clock = clock ?? StopwatchClock();
 
   static const Duration _defaultPoll = Duration(milliseconds: 5);
 
@@ -38,7 +75,7 @@ class AudioScheduler {
   bool _paused = false;
   int _nextIndex = 0;
   double _loopStartMs = 0.0;
-  final Stopwatch _stopwatch = Stopwatch();
+  final SchedulerClock _clock;
   Timer? _timer;
 
   bool get isRunning => _running;
@@ -49,7 +86,7 @@ class AudioScheduler {
   /// Current position within the loop, in beats. 0 while stopped.
   double get currentBeat {
     if (!_running) return 0.0;
-    return (_stopwatch.elapsedMilliseconds - _loopStartMs) / _msPerBeat;
+    return (_clock.elapsedMs - _loopStartMs) / _msPerBeat;
   }
 
   /// Replaces the timeline while stopped (or before the next [start]).
@@ -88,7 +125,7 @@ class AudioScheduler {
     if (_paused) {
       _paused = false;
       _running = true;
-      _stopwatch.start();
+      _clock.start();
       _spawnTimer();
       return;
     }
@@ -98,7 +135,7 @@ class AudioScheduler {
     _loop = loop;
     _nextIndex = 0;
     _loopStartMs = 0.0;
-    _stopwatch
+    _clock
       ..reset()
       ..start();
     _spawnTimer();
@@ -108,7 +145,7 @@ class AudioScheduler {
     if (!_running) return;
     _running = false;
     _paused = true;
-    _stopwatch.stop();
+    _clock.stop();
     _timer?.cancel();
     _timer = null;
   }
@@ -118,7 +155,7 @@ class AudioScheduler {
     _paused = false;
     _timer?.cancel();
     _timer = null;
-    _stopwatch
+    _clock
       ..stop()
       ..reset();
     _nextIndex = 0;
@@ -128,7 +165,7 @@ class AudioScheduler {
   void dispose() {
     _timer?.cancel();
     _timer = null;
-    _stopwatch.stop();
+    _clock.stop();
   }
 
   void _spawnTimer() {
@@ -140,7 +177,7 @@ class AudioScheduler {
       }
 
       final double msPerBeat = _msPerBeat;
-      final double elapsedMs = _stopwatch.elapsedMilliseconds.toDouble();
+      final double elapsedMs = _clock.elapsedMs;
       final double beat = (elapsedMs - _loopStartMs) / msPerBeat;
 
       _fireDueEvents(beat);
