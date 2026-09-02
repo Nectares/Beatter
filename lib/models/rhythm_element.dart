@@ -96,14 +96,28 @@ class RhythmSlot {
   final List<double> noteDurations; // sub-durations within the 1.0 beat
   final List<bool> isRestList;       // whether each sub-beat is a rest
 
+  /// Accento sul movimento: il click del metronomo usa il campione
+  /// accentato e la nota sul tempo forte suona a volume pieno mentre le
+  /// altre vengono attenuate. È una proprietà della posizione nel giro, non
+  /// della figurazione, quindi sopravvive alla rigenerazione del ritmo.
+  final bool isAccented;
+
   RhythmSlot({
     required this.assetPath,
     required this.noteDurations,
     required this.isRestList,
+    this.isAccented = false,
   });
 
+  RhythmSlot copyWith({bool? isAccented}) => RhythmSlot(
+        assetPath: assetPath,
+        noteDurations: noteDurations,
+        isRestList: isRestList,
+        isAccented: isAccented ?? this.isAccented,
+      );
+
   // Helper to map an asset to its sub-beat notes
-  static RhythmSlot fromAsset(String assetPath) {
+  static RhythmSlot fromAsset(String assetPath, {bool isAccented = false}) {
     final filename = assetPath.split('/').last;
 
     // Default: single quarter note
@@ -232,6 +246,7 @@ class RhythmSlot {
       assetPath: assetPath,
       noteDurations: durations,
       isRestList: rests,
+      isAccented: isAccented,
     );
   }
 }

@@ -24,6 +24,10 @@ class FlowModePage extends StatefulWidget {
   /// system text scale changes — a taller bar shrinks the tile grid above it.
   static const Key controlsBarKey = ValueKey('flowModeControlsBar');
 
+  /// Identifies the tile of beat [index] — the thing you tap to accent that
+  /// beat, and the handle tests use to address one beat in particular.
+  static Key slotKey(int index) => ValueKey('flowModeSlot$index');
+
   @override
   State<FlowModePage> createState() => _FlowModePageState();
 }
@@ -45,6 +49,16 @@ class _FlowModePageState extends State<FlowModePage>
 
   // ── Slot keys — used for widget identity in the single-row tile layout ────
   List<GlobalKey> _slotKeys = [];
+
+  // ── Accents ──────────────────────────────────────────────────────────────
+  // Quali movimenti sono accentati, per posizione nel giro: l'accento resta
+  // dov'è quando il ritmo si rigenera, esattamente come su uno spartito
+  // (si accenta il tempo, non la figurazione che ci capita sopra).
+  //
+  // Il default riproduce l'accento che il motore metteva fisso ogni quattro
+  // movimenti; l'indice 4 resta nell'insieme anche con poche tessere, così
+  // torna se il giro si allunga di nuovo.
+  final Set<int> _accentedSlots = {0, 4};
 
   // ── Auto-Generation Timer ────────────────────────────────────────────────
   bool _isAutoGenerateEnabled = false;
@@ -257,12 +271,16 @@ class _FlowModePageState extends State<FlowModePage>
       final randIndex = rand.nextInt(_slotsCount);
       slots[randIndex] = RhythmSlot.fromAsset(
         activeAssets[rand.nextInt(activeAssets.length)],
+        isAccented: _accentedSlots.contains(randIndex),
       );
     } else {
       // Generazione manuale o prima generazione: cambia tutte le tessere
       for (int i = 0; i < _slotsCount; i++) {
         final randomAsset = activeAssets[rand.nextInt(activeAssets.length)];
-        slots.add(RhythmSlot.fromAsset(randomAsset));
+        slots.add(RhythmSlot.fromAsset(
+          randomAsset,
+          isAccented: _accentedSlots.contains(i),
+        ));
       }
     }
 
@@ -924,7 +942,35 @@ class _FlowModePageState extends State<FlowModePage>
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 32),
+                              const SizedBox(height: 20),
+
+                              // ── Accents ──────────────────────────────────
+                              _buildSectionTitle('ACCENTI'),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Tocca una tessera per mettere o togliere l\'accento.',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton(
+                                    onPressed: _hasAccents
+                                        ? () {
+                                            _clearAccents();
+                                            setSheetState(() {});
+                                          }
+                                        : null,
+                                    child: const Text('Azzera'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
 
                               // ── Buttons ──────────────────────────────────
                               SizedBox(
@@ -1024,6 +1070,42 @@ class _FlowModePageState extends State<FlowModePage>
         ),
       ),
     );
+  }
+
+  // ── Accents ──────────────────────────────────────────────────────────────
+  /// Manda le tessere correnti al motore: in riproduzione l'aggiornamento è
+  /// fluido (il giro non si interrompe), da fermi basta riarmare la timeline.
+  void _pushSlotsToPlayback() {
+    if (_playbackService.isPlaying) {
+      _playbackService.updateSlotsSeamlessly(_generatedSlots);
+    } else {
+      _playbackService.prepareSlotPlayback(_generatedSlots);
+    }
+  }
+
+  void _toggleSlotAccent(int index) {
+    if (index >= _generatedSlots.length) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      final bool accented = !_accentedSlots.remove(index);
+      if (accented) _accentedSlots.add(index);
+      _generatedSlots[index] =
+          _generatedSlots[index].copyWith(isAccented: accented);
+    });
+    _pushSlotsToPlayback();
+  }
+
+  bool get _hasAccents => _generatedSlots.any((slot) => slot.isAccented);
+
+  void _clearAccents() {
+    if (!_hasAccents && _accentedSlots.isEmpty) return;
+    setState(() {
+      _accentedSlots.clear();
+      _generatedSlots = [
+        for (final slot in _generatedSlots) slot.copyWith(isAccented: false),
+      ];
+    });
+    _pushSlotsToPlayback();
   }
 
   // ── Quick slot-count stepper (main screen, outside the settings sheet) ───
@@ -1287,45 +1369,82 @@ class _FlowModePageState extends State<FlowModePage>
     final slot = _generatedSlots[index];
     final bool isActive = _playbackService.isPlaying &&
         _playbackService.currentElementIndex == index;
+    final bool isAccented = slot.isAccented;
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-      // width/height animate when tileSize changes (slot-count change)
-      width: tileSize,
-      height: tileSize,
-      // scale animates for the active-beat highlight
-      transform: Matrix4.identity()
-        ..translateByDouble(tileSize / 2, tileSize / 2, 0, 1)
-        ..scaleByDouble(isActive ? 1.06 : 1.0, isActive ? 1.06 : 1.0, 1, 1)
-        ..translateByDouble(-tileSize / 2, -tileSize / 2, 0, 1),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color: isActive ? AppColors.primary : AppColors.surfaceBorder,
-          width: isActive ? 3.5 : 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
+    return GestureDetector(
+      key: FlowModePage.slotKey(index),
+      // Tocca una tessera per accentare il suo movimento (e ritocca per
+      // togliere l'accento): è l'unico gesto sulla griglia, quindi non
+      // ruba niente ad altre interazioni.
+      onTap: () => _toggleSlotAccent(index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        // width/height animate when tileSize changes (slot-count change)
+        width: tileSize,
+        height: tileSize,
+        // scale animates for the active-beat highlight
+        transform: Matrix4.identity()
+          ..translateByDouble(tileSize / 2, tileSize / 2, 0, 1)
+          ..scaleByDouble(isActive ? 1.06 : 1.0, isActive ? 1.06 : 1.0, 1, 1)
+          ..translateByDouble(-tileSize / 2, -tileSize / 2, 0, 1),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(
             color: isActive
-                ? AppColors.primary.withValues(alpha: 0.4)
-                : Colors.black.withValues(alpha: 0.04),
-            blurRadius: isActive ? 16 : 6,
-            spreadRadius: isActive ? 2 : 0,
-            offset: isActive ? const Offset(0, 4) : const Offset(0, 2),
+                ? AppColors.primary
+                : isAccented
+                ? AppColors.tertiary
+                : AppColors.surfaceBorder,
+            width: isActive
+                ? 3.5
+                : isAccented
+                ? 2.5
+                : 1.5,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(imagePadding),
-            child: Image.asset(
-              slot.assetPath,
-              fit: BoxFit.contain,
+          boxShadow: [
+            BoxShadow(
+              color: isActive
+                  ? AppColors.primary.withValues(alpha: 0.4)
+                  : Colors.black.withValues(alpha: 0.04),
+              blurRadius: isActive ? 16 : 6,
+              spreadRadius: isActive ? 2 : 0,
+              offset: isActive ? const Offset(0, 4) : const Offset(0, 2),
             ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Stack(
+            children: [
+              Center(
+                child: Padding(
+                  padding: EdgeInsets.all(imagePadding),
+                  child: Image.asset(
+                    slot.assetPath,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              if (isAccented)
+                Positioned(
+                  top: tileSize * 0.04,
+                  left: tileSize * 0.08,
+                  // Il segno di accento della notazione, ">".
+                  child: Text(
+                    '>',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: tileSize * 0.26,
+                      height: 1.0,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.tertiary,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

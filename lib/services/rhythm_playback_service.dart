@@ -144,6 +144,20 @@ class RhythmPlaybackService extends ChangeNotifier {
       _metronomePools = {};
   AudioPlayerPool? _stickPool;
   AudioPlayerPool? _snarePool;
+
+  // Gemelli a volume pieno di stick/snare, usati per le note accentate. I
+  // campioni sono già quasi a fondo scala: un accento non può suonare "più
+  // forte", quindi è il resto a farsi più piano (vedi _applyAccentBalance),
+  // e servono due pool perché cambiare volume sul singolo colpo vorrebbe
+  // dire una chiamata di piattaforma asincrona proprio sull'attacco.
+  AudioPlayerPool? _stickAccentPool;
+  AudioPlayerPool? _snareAccentPool;
+
+  /// Volume delle note non accentate quando il pattern ha almeno un
+  /// accento. Senza accenti si torna a 1.0 e non cambia nulla.
+  static const double _unaccentedVolume = 0.62;
+
+  bool? _accentBalanceApplied;
   final Map<String, AudioPlayerPool> _notePools = {};
   final bool _enableMelodicPlayback;
 
@@ -204,6 +218,9 @@ class RhythmPlaybackService extends ChangeNotifier {
     _ensureMetronomePools(_metronomeSound);
     _stickPool = AudioPlayerPool(assetPath: 'audio/stick.wav', size: 3);
     _snarePool = AudioPlayerPool(assetPath: 'audio/snare.wav', size: 4);
+    // Gli accenti sono radi: due player a testa bastano.
+    _stickAccentPool = AudioPlayerPool(assetPath: 'audio/stick.wav', size: 2);
+    _snareAccentPool = AudioPlayerPool(assetPath: 'audio/snare.wav', size: 2);
 
     if (_enableMelodicPlayback) {
       for (final noteName in _melodicNoteNames) {
@@ -222,6 +239,17 @@ class RhythmPlaybackService extends ChangeNotifier {
         click: AudioPlayerPool(assetPath: samples.click, size: 3),
       ),
     );
+  }
+
+  /// Bilancia i volumi in base alla presenza di accenti nel pattern
+  /// corrente. Chiamato al `prepare`, non a ogni colpo: `setVolume` è una
+  /// chiamata di piattaforma e non deve capitare sull'attacco della nota.
+  void _applyAccentBalance(bool hasAccents) {
+    if (_accentBalanceApplied == hasAccents) return;
+    _accentBalanceApplied = hasAccents;
+    final double volume = hasAccents ? _unaccentedVolume : 1.0;
+    _stickPool?.setVolume(volume);
+    _snarePool?.setVolume(volume);
   }
 
   void updateSettings({
@@ -262,6 +290,9 @@ class RhythmPlaybackService extends ChangeNotifier {
   /// metronomo continua e gli eventi-guida evidenziano le figurazioni al
   /// momento giusto.
   void preparePlayback(List<RhythmMeasure> measures, {int? echoEveryMeasures}) {
+    // Gli accenti sulle note esistono solo nelle tessere del Flow Mode: qui
+    // le note tornano tutte allo stesso volume.
+    _applyAccentBalance(false);
     final (events, totalBeats) =
         buildTimeline(measures, echoEveryMeasures: echoEveryMeasures);
     _timeline
@@ -478,36 +509,45 @@ class RhythmPlaybackService extends ChangeNotifier {
 
   /// Costruisce la timeline esatta degli eventi in base alle tessere del Flow Mode.
   /// Flow Mode usa sempre un tempo fisso di 4/4.
-  void prepareSlotPlayback(List<RhythmSlot> slots) {
-    _timeline.clear();
+  /// Costruzione pura della timeline del Flow Mode: una tessera per
+  /// movimento, col click del metronomo e le note (o pause) interne.
+  ///
+  /// Una tessera accentata marca `isAccent` sul click — che così usa il
+  /// campione accentato del metronomo — e sulla nota del tempo forte, che
+  /// suona a volume pieno mentre le altre restano attenuate. Se il tempo
+  /// forte è una pausa non c'è niente da accentare e resta accentato solo
+  /// il click.
+  static (List<PlaybackEvent>, double) buildSlotTimeline(
+    List<RhythmSlot> slots,
+  ) {
+    final events = <PlaybackEvent>[];
 
     for (int i = 0; i < slots.length; i++) {
       final slot = slots[i];
       final double slotBeatOffset = i.toDouble();
 
-      // 1. Aggiungi i click del metronomo su ciascun movimento
-      final bool isAccent = i % 4 == 0;
-
-      _timeline.add(PlaybackEvent(
+      // 1. Click del metronomo sul movimento.
+      events.add(PlaybackEvent(
         beatOffset: slotBeatOffset,
         measureIndex: 0,
         elementIndex: -1,
         isMetronome: true,
-        isAccent: isAccent,
+        isAccent: slot.isAccented,
         noteType: RhythmElementType.quarter,
       ));
 
-      // 2. Aggiungi le note all'interno del movimento
+      // 2. Note all'interno del movimento.
       double subBeatOffset = 0.0;
       for (int noteIdx = 0; noteIdx < slot.noteDurations.length; noteIdx++) {
         final double noteDuration = slot.noteDurations[noteIdx];
         final bool isRest = slot.isRestList[noteIdx];
 
-        _timeline.add(PlaybackEvent(
+        events.add(PlaybackEvent(
           beatOffset: slotBeatOffset + subBeatOffset,
           measureIndex: 0,
           elementIndex: i, // L'indice della tessera
           isRest: isRest,
+          isAccent: slot.isAccented && noteIdx == 0 && !isRest,
           noteType: RhythmElementType.quarter,
         ));
 
@@ -515,9 +555,18 @@ class RhythmPlaybackService extends ChangeNotifier {
       }
     }
 
-    _totalBeats = slots.length.toDouble();
-    _timeline.sort((a, b) => a.beatOffset.compareTo(b.beatOffset));
+    events.sort((a, b) => a.beatOffset.compareTo(b.beatOffset));
+    return (events, slots.length.toDouble());
+  }
+
+  void prepareSlotPlayback(List<RhythmSlot> slots) {
+    final (events, totalBeats) = buildSlotTimeline(slots);
+    _timeline
+      ..clear()
+      ..addAll(events);
+    _totalBeats = totalBeats;
     _nextEventIndex = 0;
+    _applyAccentBalance(slots.any((slot) => slot.isAccented));
   }
 
   /// Aggiorna le tessere del Flow Mode in modo fluido senza interrompere il loop.
@@ -680,9 +729,9 @@ class RhythmPlaybackService extends ChangeNotifier {
         if (_soundInstrument == 'melodic') {
           _notePools[event.noteName]?.play();
         } else if (_soundInstrument == 'snare') {
-          _snarePool?.play();
+          (event.isAccent ? _snareAccentPool : _snarePool)?.play();
         } else {
-          _stickPool?.play();
+          (event.isAccent ? _stickAccentPool : _stickPool)?.play();
         }
       }
 
@@ -713,6 +762,8 @@ class RhythmPlaybackService extends ChangeNotifier {
     }
     _stickPool?.dispose();
     _snarePool?.dispose();
+    _stickAccentPool?.dispose();
+    _snareAccentPool?.dispose();
     for (final pool in _notePools.values) {
       pool.dispose();
     }
