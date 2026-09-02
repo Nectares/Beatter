@@ -376,6 +376,13 @@ Versions compare segment by segment (`1.10.0` > `1.9.9`); anything after `+` or
 number. "Skip this version" is remembered per device until `latestVersion`
 moves again.
 
+The document's content lives in the repo as `firebase/seed/config_appVersion.json`
+(neutral values: same version as `pubspec.yaml`, so nobody is blocked and no
+dialog shows). Load it either by adding the fields in the Firestore console, or
+with `node tools/seed_app_version.mjs` — the script needs service credentials
+(`GOOGLE_APPLICATION_CREDENTIALS`, or `gcloud auth application-default login`),
+because the Firebase CLI can delete Firestore documents but not write them.
+
 Release order that matters: **publish the store build first, then raise
 `latestVersion`, and raise `minSupportedVersion` only once the new build has
 had time to roll out** — raising it early locks out users whose store update
