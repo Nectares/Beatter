@@ -84,6 +84,26 @@ class RhythmPlaybackService extends ChangeNotifier {
   bool _isMetronomeEnabled = true;
   String _soundInstrument = 'silent'; // 'silent', 'snare', 'stick' o 'melodic'
 
+  /// I suoni di metronomo selezionabili, ognuno con la sua coppia di
+  /// campioni: accento (primo movimento) e click (movimenti deboli). Il
+  /// motore non sa nient'altro dei due suoni, quindi aggiungerne un terzo è
+  /// solo questione di generare i WAV (`generate_audio_assets.dart`),
+  /// dichiararli in pubspec.yaml e aggiungere una voce qui.
+  static const Map<String, ({String accent, String click})> metronomeSounds = {
+    'classic': (
+      accent: 'audio/metronome_accent.wav',
+      click: 'audio/metronome_click.wav',
+    ),
+    'beatter': (
+      accent: 'audio/beatter_beep_accent.wav',
+      click: 'audio/beatter_beep_click.wav',
+    ),
+  };
+
+  static const String defaultMetronomeSound = 'classic';
+
+  String _metronomeSound = defaultMetronomeSound;
+
   // Stato riproduzione
   bool _isPlaying = false;
   bool _isPaused = false;
@@ -115,8 +135,13 @@ class RhythmPlaybackService extends ChangeNotifier {
   int _echoBestStreak = 0;
 
   // Servizio Audio Pools
-  AudioPlayerPool? _accentPool;
-  AudioPlayerPool? _clickPool;
+  //
+  // Il metronomo ha una coppia di pool per ogni suono di
+  // [metronomeSounds], creata alla prima selezione e poi tenuta in cache:
+  // pre-caricare il suono al cambio di impostazione (e non al primo tick)
+  // evita che il primo click arrivi in ritardo.
+  final Map<String, ({AudioPlayerPool accent, AudioPlayerPool click})>
+      _metronomePools = {};
   AudioPlayerPool? _stickPool;
   AudioPlayerPool? _snarePool;
   final Map<String, AudioPlayerPool> _notePools = {};
@@ -148,6 +173,7 @@ class RhythmPlaybackService extends ChangeNotifier {
   // Getters
   int get bpm => _bpm;
   bool get isMetronomeEnabled => _isMetronomeEnabled;
+  String get metronomeSound => _metronomeSound;
   String get soundInstrument => _soundInstrument;
   bool get isPlaying => _isPlaying;
   bool get isPaused => _isPaused;
@@ -175,8 +201,7 @@ class RhythmPlaybackService extends ChangeNotifier {
   }
 
   void _initAudioPools() {
-    _accentPool = AudioPlayerPool(assetPath: 'audio/metronome_accent.wav', size: 2);
-    _clickPool = AudioPlayerPool(assetPath: 'audio/metronome_click.wav', size: 3);
+    _ensureMetronomePools(_metronomeSound);
     _stickPool = AudioPlayerPool(assetPath: 'audio/stick.wav', size: 3);
     _snarePool = AudioPlayerPool(assetPath: 'audio/snare.wav', size: 4);
 
@@ -187,14 +212,34 @@ class RhythmPlaybackService extends ChangeNotifier {
     }
   }
 
+  void _ensureMetronomePools(String sound) {
+    final samples = metronomeSounds[sound];
+    if (samples == null) return;
+    _metronomePools.putIfAbsent(
+      sound,
+      () => (
+        accent: AudioPlayerPool(assetPath: samples.accent, size: 2),
+        click: AudioPlayerPool(assetPath: samples.click, size: 3),
+      ),
+    );
+  }
+
   void updateSettings({
     int? bpm,
     bool? isMetronomeEnabled,
+    String? metronomeSound,
     String? soundInstrument,
     bool? echoGuideEnabled,
   }) {
     if (bpm != null) _bpm = bpm;
     if (isMetronomeEnabled != null) _isMetronomeEnabled = isMetronomeEnabled;
+    // Un id sconosciuto (impostazione vecchia o salvata da una versione
+    // futura) viene ignorato: meglio restare sul suono corrente che
+    // ritrovarsi il metronomo muto.
+    if (metronomeSound != null && metronomeSounds.containsKey(metronomeSound)) {
+      _metronomeSound = metronomeSound;
+      _ensureMetronomePools(metronomeSound);
+    }
     if (soundInstrument != null) _soundInstrument = soundInstrument;
     if (echoGuideEnabled != null) _echoGuideEnabled = echoGuideEnabled;
     notifyListeners();
@@ -203,6 +248,11 @@ class RhythmPlaybackService extends ChangeNotifier {
   /// Feedback sonoro del tap dell'utente durante la finestra di eco del
   /// Reading Mode (bacchetta, indipendente dallo strumento delle note).
   void playTap() => _stickPool?.play();
+
+  /// Fa sentire l'accento del metronomo selezionato: sceglierne uno dalle
+  /// impostazioni senza poterlo ascoltare sarebbe alla cieca.
+  void previewMetronomeSound() =>
+      _metronomePools[_metronomeSound]?.accent.play();
 
   /// Costruisce la timeline esatta degli eventi in base al ritmo generato.
   ///
@@ -616,10 +666,11 @@ class RhythmPlaybackService extends ChangeNotifier {
   void _executeEvent(PlaybackEvent event) {
     if (event.isMetronome) {
       if (_isMetronomeEnabled) {
+        final pools = _metronomePools[_metronomeSound];
         if (event.isAccent) {
-          _accentPool?.play();
+          pools?.accent.play();
         } else {
-          _clickPool?.play();
+          pools?.click.play();
         }
       }
     } else {
@@ -656,8 +707,10 @@ class RhythmPlaybackService extends ChangeNotifier {
   @override
   void dispose() {
     _schedulerTimer?.cancel();
-    _accentPool?.dispose();
-    _clickPool?.dispose();
+    for (final pools in _metronomePools.values) {
+      pools.accent.dispose();
+      pools.click.dispose();
+    }
     _stickPool?.dispose();
     _snarePool?.dispose();
     for (final pool in _notePools.values) {

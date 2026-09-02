@@ -13,24 +13,11 @@
 // changes, plus a plain no-overflow sweep over realistic phone/tablet
 // sizes.
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:beatter/features/music/presentation/pages/flow_mode_page.dart';
 import 'package:beatter/theme/app_theme.dart';
 
-/// The page builds a [RhythmPlaybackService], which eagerly creates
-/// audioplayers instances; without stub handlers those platform calls throw
-/// MissingPluginException and fail the test for reasons unrelated to layout.
-void _stubAudioPlayers() {
-  final messenger =
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  for (final channel in const [
-    MethodChannel('xyz.luan/audioplayers'),
-    MethodChannel('xyz.luan/audioplayers.global'),
-  ]) {
-    messenger.setMockMethodCallHandler(channel, (call) async => null);
-  }
-}
+import 'support/audio_plugin_stubs.dart';
 
 Future<void> _pumpFlowMode(
   WidgetTester tester,
@@ -66,7 +53,7 @@ Future<void> _setBpm(WidgetTester tester, double bpm) async {
 }
 
 void main() {
-  setUp(_stubAudioPlayers);
+  setUp(stubAudioPlugins);
 
   testWidgets(
       'controls bar height is stable across value changes at textScale 2.0',

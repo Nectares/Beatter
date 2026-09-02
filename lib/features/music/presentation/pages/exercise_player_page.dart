@@ -15,6 +15,7 @@ import '../../../../services/exercise_repository.dart';
 import '../../../../services/reading_score_repository.dart';
 import '../../../../services/rhythm_playback_service.dart';
 import '../../../../widgets/music_staff/wrapped_staff_view.dart';
+import '../widgets/metronome_sound_dropdown.dart';
 import '../widgets/playback_button.dart';
 
 /// Views a single generated rhythm reading exercise: multi-system staff,
@@ -380,6 +381,7 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
           ],
         ),
         _buildSoundInstrumentDropdown(),
+        MetronomeSoundDropdown(playbackService: _playbackService),
       ],
     );
   }

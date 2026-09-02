@@ -82,6 +82,8 @@ flutter:
   assets:
     - assets/audio/metronome_accent.wav
     - assets/audio/metronome_click.wav
+    - assets/audio/beatter_beep_accent.wav
+    - assets/audio/beatter_beep_click.wav
     - assets/audio/stick.wav
     - assets/audio/snare.wav
     - assets/audio/notes/

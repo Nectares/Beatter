@@ -14,6 +14,7 @@ import '../../../../core/navigation/shell_visibility.dart';
 import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../widgets/metronome_sound_dropdown.dart';
 
 class FlowModePage extends StatefulWidget {
   const FlowModePage({super.key});
@@ -900,6 +901,26 @@ class _FlowModePageState extends State<FlowModePage>
                                         }
                                       },
                                     ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Suono metronomo',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  MetronomeSoundDropdown(
+                                    playbackService: _playbackService,
+                                    onChanged: () => setSheetState(() {}),
                                   ),
                                 ],
                               ),
