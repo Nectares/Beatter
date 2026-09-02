@@ -5,6 +5,8 @@
 // through the full-volume pool while the rest is attenuated). The timeline
 // half is pure, so it is checked directly; the UI half is the tap that sets
 // the accent, which has to survive a regeneration of the rhythm.
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:beatter/features/music/presentation/pages/flow_mode_page.dart';
@@ -91,6 +93,50 @@ void main() {
     });
   });
 
+  group('randomAccentPositions', () {
+    test('places exactly the cap, distinct and in range', () {
+      final positions = FlowModePage.randomAccentPositions(
+        slotCount: 7,
+        maxAccents: 3,
+        random: math.Random(1),
+      );
+
+      expect(positions.length, 3);
+      expect(positions.every((i) => i >= 0 && i < 7), isTrue);
+    });
+
+    test('never accents more beats than the loop has', () {
+      final positions = FlowModePage.randomAccentPositions(
+        slotCount: 2,
+        maxAccents: 5,
+        random: math.Random(2),
+      );
+
+      expect(positions.length, 2);
+    });
+
+    test('a cap of zero means no accents at all', () {
+      expect(
+        FlowModePage.randomAccentPositions(slotCount: 4, maxAccents: 0),
+        isEmpty,
+      );
+    });
+
+    test('the positions move around between generations', () {
+      final random = math.Random(7);
+      final seen = {
+        for (var i = 0; i < 20; i++)
+          FlowModePage.randomAccentPositions(
+            slotCount: 4,
+            maxAccents: 1,
+            random: random,
+          ).single,
+      };
+
+      expect(seen.length, greaterThan(1));
+    });
+  });
+
   group('Flow Mode accent taps', () {
     setUp(stubAudioPlugins);
 
@@ -113,41 +159,60 @@ void main() {
           matching: find.text('>'),
         );
 
-    testWidgets('starts with the downbeat accented', (tester) async {
+    int accentedBeat(WidgetTester tester) => List.generate(4, (i) => i)
+        .firstWhere((i) => accentOf(i).evaluate().isNotEmpty);
+
+    testWidgets('a generated loop comes out with one accent', (tester) async {
       await pumpFlowMode(tester);
 
-      expect(accentOf(0), findsOneWidget);
       expect(find.text('>'), findsOneWidget);
+
+      // Regenerating re-rolls the accent with the rhythm — still one, and
+      // still inside the loop.
+      await tester.tap(find.text('Generate'));
+      await tester.pumpAndSettle();
+      expect(find.text('>'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('tapping a tile toggles that beat accent', (tester) async {
+    testWidgets('tapping another tile moves the accent when the cap is one',
+        (tester) async {
       await pumpFlowMode(tester);
+      final int target = (accentedBeat(tester) + 1) % 4;
 
-      await tester.tap(find.byKey(FlowModePage.slotKey(2)));
+      await tester.tap(find.byKey(FlowModePage.slotKey(target)));
       await tester.pumpAndSettle();
-      expect(accentOf(2), findsOneWidget);
-      expect(find.text('>'), findsNWidgets(2));
 
-      await tester.tap(find.byKey(FlowModePage.slotKey(2)));
+      expect(accentOf(target), findsOneWidget);
+      expect(find.text('>'), findsOneWidget, reason: 'the old accent moved');
+
+      await tester.tap(find.byKey(FlowModePage.slotKey(target)));
       await tester.pumpAndSettle();
-      expect(accentOf(2), findsNothing);
-      expect(find.text('>'), findsOneWidget);
+      expect(find.text('>'), findsNothing);
     });
 
-    testWidgets('accents stay put when the rhythm is regenerated',
+    testWidgets('the settings cap decides how many accents a loop carries',
         (tester) async {
       await pumpFlowMode(tester);
 
-      await tester.tap(find.byKey(FlowModePage.slotKey(3)));
-      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Impostazioni'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Generate'));
-      await tester.pumpAndSettle();
+      final label = find.text('Massimo accenti per giro');
+      await tester.scrollUntilVisible(label, 120,
+          scrollable: find.byType(Scrollable).last);
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(accentOf(0), findsOneWidget);
-      expect(accentOf(3), findsOneWidget);
-      expect(find.text('>'), findsNWidgets(2));
-      expect(tester.takeException(), isNull);
+      final row = find.ancestor(of: label, matching: find.byType(Row)).first;
+      final plus = find.descendant(of: row, matching: find.byIcon(Icons.add_rounded));
+      await tester.tap(plus);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(plus);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.descendant(of: row, matching: find.text('3')), findsOneWidget);
+      expect(find.text('>'), findsNWidgets(3));
     });
   });
 }

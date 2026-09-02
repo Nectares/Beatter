@@ -9,6 +9,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:beatter/features/music/presentation/pages/flow_mode_page.dart';
 import 'package:beatter/features/music/presentation/widgets/metronome_sound_dropdown.dart';
 import 'package:beatter/services/rhythm_playback_service.dart';
 import 'package:beatter/theme/app_theme.dart';
@@ -91,6 +92,83 @@ void main() {
       expect(service.bpm, 96);
       expect(service.soundInstrument, 'snare');
       expect(service.isMetronomeEnabled, isTrue);
+    });
+  });
+
+  group('volumes', () {
+    late RhythmPlaybackService service;
+
+    setUp(() {
+      stubAudioPlugins();
+      service = RhythmPlaybackService(); // see the note above on dispose
+    });
+
+    test('start at the maximum', () {
+      expect(service.metronomeVolume, 1.0);
+      expect(service.noteVolume, 1.0);
+    });
+
+    test('are set independently and notify listeners', () {
+      var notifications = 0;
+      service.addListener(() => notifications++);
+
+      service.updateSettings(metronomeVolume: 0.4);
+
+      expect(service.metronomeVolume, 0.4);
+      expect(service.noteVolume, 1.0, reason: 'le figurazioni non cambiano');
+      expect(notifications, 1);
+
+      service.updateSettings(noteVolume: 0.25);
+      expect(service.metronomeVolume, 0.4);
+      expect(service.noteVolume, 0.25);
+    });
+
+    test('are clamped to 0..1', () {
+      service.updateSettings(metronomeVolume: 3.0, noteVolume: -1.0);
+
+      expect(service.metronomeVolume, 1.0);
+      expect(service.noteVolume, 0.0);
+    });
+  });
+
+  group('Flow Mode volume sliders', () {
+    setUp(stubAudioPlugins);
+
+    Finder sliderFor(String label) => find.descendant(
+          of: find.ancestor(of: find.text(label), matching: find.byType(Column))
+              .first,
+          matching: find.byType(Slider),
+        );
+
+    testWidgets('start at 100% and follow the slider', (tester) async {
+      tester.view.physicalSize = const Size(411, 891);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.lightTheme, home: const FlowModePage()),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Impostazioni'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.scrollUntilVisible(find.text('Volume figurazioni'), 120,
+          scrollable: find.byType(Scrollable).last);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('100%'), findsNWidgets(2));
+
+      // onChanged is exactly what a drag ends up calling.
+      tester.widget<Slider>(sliderFor('Volume metronomo')).onChanged!(0.5);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('50%'), findsOneWidget);
+      expect(find.text('100%'), findsOneWidget, reason: 'solo il metronomo');
     });
   });
 

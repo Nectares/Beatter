@@ -147,17 +147,28 @@ class RhythmPlaybackService extends ChangeNotifier {
 
   // Gemelli a volume pieno di stick/snare, usati per le note accentate. I
   // campioni sono già quasi a fondo scala: un accento non può suonare "più
-  // forte", quindi è il resto a farsi più piano (vedi _applyAccentBalance),
+  // forte", quindi è il resto a farsi più piano (vedi _applyVolumes),
   // e servono due pool perché cambiare volume sul singolo colpo vorrebbe
   // dire una chiamata di piattaforma asincrona proprio sull'attacco.
   AudioPlayerPool? _stickAccentPool;
   AudioPlayerPool? _snareAccentPool;
 
-  /// Volume delle note non accentate quando il pattern ha almeno un
-  /// accento. Senza accenti si torna a 1.0 e non cambia nulla.
-  static const double _unaccentedVolume = 0.62;
+  /// Quanto scendono le note non accentate quando il pattern ha almeno un
+  /// accento. Senza accenti il fattore è 1.0 e non cambia nulla.
+  static const double _unaccentedFactor = 0.62;
 
-  bool? _accentBalanceApplied;
+  // Volumi impostabili dall'utente (1.0 = massimo, il default).
+  double _metronomeVolume = 1.0;
+  double _noteVolume = 1.0;
+
+  /// Se il pattern preparato ha almeno un accento: decide se attenuare le
+  /// note normali rispetto a quelle accentate.
+  bool _patternHasAccents = false;
+
+  /// Ultimo stato applicato ai player, per non ripetere le chiamate di
+  /// piattaforma a ogni `prepare` (con l'auto-generazione attiva il Flow
+  /// Mode ne fa una a ogni giro).
+  (double, double, bool)? _appliedVolumes;
   final Map<String, AudioPlayerPool> _notePools = {};
   final bool _enableMelodicPlayback;
 
@@ -188,6 +199,8 @@ class RhythmPlaybackService extends ChangeNotifier {
   int get bpm => _bpm;
   bool get isMetronomeEnabled => _isMetronomeEnabled;
   String get metronomeSound => _metronomeSound;
+  double get metronomeVolume => _metronomeVolume;
+  double get noteVolume => _noteVolume;
   String get soundInstrument => _soundInstrument;
   bool get isPlaying => _isPlaying;
   bool get isPaused => _isPaused;
@@ -227,11 +240,15 @@ class RhythmPlaybackService extends ChangeNotifier {
         _notePools[noteName] = AudioPlayerPool(assetPath: 'audio/notes/$noteName.wav', size: 2);
       }
     }
+
+    _appliedVolumes = null;
+    _applyVolumes();
   }
 
   void _ensureMetronomePools(String sound) {
     final samples = metronomeSounds[sound];
     if (samples == null) return;
+    final int before = _metronomePools.length;
     _metronomePools.putIfAbsent(
       sound,
       () => (
@@ -239,23 +256,52 @@ class RhythmPlaybackService extends ChangeNotifier {
         click: AudioPlayerPool(assetPath: samples.click, size: 3),
       ),
     );
+    // I pool nuovi nascono a volume pieno: allineali all'impostazione
+    // corrente, altrimenti cambiare suono rialzerebbe il metronomo.
+    if (_metronomePools.length != before) {
+      _appliedVolumes = null;
+      _applyVolumes();
+    }
   }
 
-  /// Bilancia i volumi in base alla presenza di accenti nel pattern
-  /// corrente. Chiamato al `prepare`, non a ogni colpo: `setVolume` è una
-  /// chiamata di piattaforma e non deve capitare sull'attacco della nota.
-  void _applyAccentBalance(bool hasAccents) {
-    if (_accentBalanceApplied == hasAccents) return;
-    _accentBalanceApplied = hasAccents;
-    final double volume = hasAccents ? _unaccentedVolume : 1.0;
-    _stickPool?.setVolume(volume);
-    _snarePool?.setVolume(volume);
+  /// Porta i volumi impostati (e il rapporto fra note accentate e non) sui
+  /// player. Chiamata al `prepare` e al cambio di impostazione, mai sul
+  /// singolo colpo: `setVolume` è una chiamata di piattaforma e non deve
+  /// capitare sull'attacco della nota.
+  void _applyVolumes() {
+    final state = (_metronomeVolume, _noteVolume, _patternHasAccents);
+    if (_appliedVolumes == state) return;
+    _appliedVolumes = state;
+
+    for (final pools in _metronomePools.values) {
+      pools.accent.setVolume(_metronomeVolume);
+      pools.click.setVolume(_metronomeVolume);
+    }
+
+    // L'accento non può salire sopra il volume impostato (i campioni sono
+    // già quasi a fondo scala): sono le note normali a scendere.
+    final double unaccented =
+        _noteVolume * (_patternHasAccents ? _unaccentedFactor : 1.0);
+    _stickPool?.setVolume(unaccented);
+    _snarePool?.setVolume(unaccented);
+    _stickAccentPool?.setVolume(_noteVolume);
+    _snareAccentPool?.setVolume(_noteVolume);
+    for (final pool in _notePools.values) {
+      pool.setVolume(_noteVolume);
+    }
+  }
+
+  void _setPatternHasAccents(bool hasAccents) {
+    _patternHasAccents = hasAccents;
+    _applyVolumes();
   }
 
   void updateSettings({
     int? bpm,
     bool? isMetronomeEnabled,
     String? metronomeSound,
+    double? metronomeVolume,
+    double? noteVolume,
     String? soundInstrument,
     bool? echoGuideEnabled,
   }) {
@@ -268,6 +314,11 @@ class RhythmPlaybackService extends ChangeNotifier {
       _metronomeSound = metronomeSound;
       _ensureMetronomePools(metronomeSound);
     }
+    if (metronomeVolume != null) {
+      _metronomeVolume = metronomeVolume.clamp(0.0, 1.0);
+    }
+    if (noteVolume != null) _noteVolume = noteVolume.clamp(0.0, 1.0);
+    if (metronomeVolume != null || noteVolume != null) _applyVolumes();
     if (soundInstrument != null) _soundInstrument = soundInstrument;
     if (echoGuideEnabled != null) _echoGuideEnabled = echoGuideEnabled;
     notifyListeners();
@@ -292,7 +343,7 @@ class RhythmPlaybackService extends ChangeNotifier {
   void preparePlayback(List<RhythmMeasure> measures, {int? echoEveryMeasures}) {
     // Gli accenti sulle note esistono solo nelle tessere del Flow Mode: qui
     // le note tornano tutte allo stesso volume.
-    _applyAccentBalance(false);
+    _setPatternHasAccents(false);
     final (events, totalBeats) =
         buildTimeline(measures, echoEveryMeasures: echoEveryMeasures);
     _timeline
@@ -566,7 +617,7 @@ class RhythmPlaybackService extends ChangeNotifier {
       ..addAll(events);
     _totalBeats = totalBeats;
     _nextEventIndex = 0;
-    _applyAccentBalance(slots.any((slot) => slot.isAccented));
+    _setPatternHasAccents(slots.any((slot) => slot.isAccented));
   }
 
   /// Aggiorna le tessere del Flow Mode in modo fluido senza interrompere il loop.

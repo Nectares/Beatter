@@ -28,6 +28,22 @@ class FlowModePage extends StatefulWidget {
   /// beat, and the handle tests use to address one beat in particular.
   static Key slotKey(int index) => ValueKey('flowModeSlot$index');
 
+  /// Le posizioni accentate di un giro appena generato: [maxAccents]
+  /// movimenti distinti presi a caso fra i [slotCount] disponibili (meno,
+  /// se i movimenti sono meno del massimo impostato). Con 0 il giro esce
+  /// senza accenti.
+  static Set<int> randomAccentPositions({
+    required int slotCount,
+    required int maxAccents,
+    math.Random? random,
+  }) {
+    final int count = maxAccents.clamp(0, slotCount);
+    if (count <= 0) return {};
+    final positions = List<int>.generate(slotCount, (i) => i)
+      ..shuffle(random ?? math.Random());
+    return positions.take(count).toSet();
+  }
+
   @override
   State<FlowModePage> createState() => _FlowModePageState();
 }
@@ -51,14 +67,18 @@ class _FlowModePageState extends State<FlowModePage>
   List<GlobalKey> _slotKeys = [];
 
   // ── Accents ──────────────────────────────────────────────────────────────
-  // Quali movimenti sono accentati, per posizione nel giro: l'accento resta
-  // dov'è quando il ritmo si rigenera, esattamente come su uno spartito
-  // (si accenta il tempo, non la figurazione che ci capita sopra).
+  // Quali movimenti del giro sono accentati. Le posizioni fanno parte del
+  // ritmo generato: cambiano a caso a ogni generazione, entro il massimo
+  // impostato. Fra una generazione e l'altra restano dove sono e si possono
+  // spostare a mano toccando le tessere.
   //
-  // Il default riproduce l'accento che il motore metteva fisso ogni quattro
-  // movimenti; l'indice 4 resta nell'insieme anche con poche tessere, così
-  // torna se il giro si allunga di nuovo.
-  final Set<int> _accentedSlots = {0, 4};
+  // L'ordine di inserimento conta: quando un tocco sfora il massimo esce
+  // l'accento più vecchio (Set in Dart preserva l'ordine di inserimento).
+  final Set<int> _accentedSlots = {};
+
+  /// Quanti accenti al massimo possono essere attivi insieme sulle
+  /// tessere: impostabile dalle impostazioni, 0 = nessun accento.
+  int _maxAccents = 1;
 
   // ── Auto-Generation Timer ────────────────────────────────────────────────
   bool _isAutoGenerateEnabled = false;
@@ -274,7 +294,16 @@ class _FlowModePageState extends State<FlowModePage>
         isAccented: _accentedSlots.contains(randIndex),
       );
     } else {
-      // Generazione manuale o prima generazione: cambia tutte le tessere
+      // Generazione manuale o prima generazione: cambia tutte le tessere.
+      // Anche gli accenti sono parte del ritmo generato, quindi cambiano
+      // posizione insieme alle figurazioni (entro il massimo impostato).
+      _accentedSlots
+        ..clear()
+        ..addAll(FlowModePage.randomAccentPositions(
+          slotCount: _slotsCount,
+          maxAccents: _maxAccents,
+          random: rand,
+        ));
       for (int i = 0; i < _slotsCount; i++) {
         final randomAsset = activeAssets[rand.nextInt(activeAssets.length)];
         slots.add(RhythmSlot.fromAsset(
@@ -466,15 +495,18 @@ class _FlowModePageState extends State<FlowModePage>
                               size: 24,
                             ),
                             const SizedBox(width: 10),
-                            const Text(
-                              'Rhythm Settings',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                            const Expanded(
+                              child: Text(
+                                'Rhythm Settings',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            const Spacer(),
                             IconButton(
                               icon: const Icon(
                                 Icons.close_rounded,
@@ -684,8 +716,11 @@ class _FlowModePageState extends State<FlowModePage>
                               // ── Figuration Grid Selector ───────────────────
                               Row(
                                 children: [
-                                  _buildSectionTitle('FIGURAZIONI RITMICHE'),
-                                  const Spacer(),
+                                  Expanded(
+                                    child: _buildSectionTitle(
+                                      'FIGURAZIONI RITMICHE',
+                                    ),
+                                  ),
                                   TextButton(
                                     onPressed: () {
                                       setSheetState(() {
@@ -942,7 +977,28 @@ class _FlowModePageState extends State<FlowModePage>
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 20),
+                              const SizedBox(height: 4),
+                              _buildVolumeRow(
+                                icon: Icons.volume_up_rounded,
+                                label: 'Volume metronomo',
+                                value: _playbackService.metronomeVolume,
+                                onChanged: (v) {
+                                  setSheetState(() {});
+                                  _playbackService.updateSettings(
+                                    metronomeVolume: v,
+                                  );
+                                },
+                              ),
+                              _buildVolumeRow(
+                                icon: Icons.music_note_rounded,
+                                label: 'Volume figurazioni',
+                                value: _playbackService.noteVolume,
+                                onChanged: (v) {
+                                  setSheetState(() {});
+                                  _playbackService.updateSettings(noteVolume: v);
+                                },
+                              ),
+                              const SizedBox(height: 16),
 
                               // ── Accents ──────────────────────────────────
                               _buildSectionTitle('ACCENTI'),
@@ -951,7 +1007,61 @@ class _FlowModePageState extends State<FlowModePage>
                                 children: [
                                   const Expanded(
                                     child: Text(
-                                      'Tocca una tessera per mettere o togliere l\'accento.',
+                                      'Massimo accenti per giro',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  _buildCounterButton(
+                                    icon: Icons.remove_rounded,
+                                    size: 34,
+                                    onPressed: _maxAccents > 0
+                                        ? () {
+                                            _setMaxAccents(_maxAccents - 1);
+                                            setSheetState(() {});
+                                          }
+                                        : null,
+                                  ),
+                                  SizedBox(
+                                    width: _valueLabelWidth(
+                                      base: 30,
+                                      fontSize: 15,
+                                      emCount: 1.0,
+                                    ),
+                                    child: Text(
+                                      '$_maxAccents',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.visible,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  _buildCounterButton(
+                                    icon: Icons.add_rounded,
+                                    size: 34,
+                                    onPressed: _maxAccents < _slotsCount
+                                        ? () {
+                                            _setMaxAccents(_maxAccents + 1);
+                                            setSheetState(() {});
+                                          }
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Gli accenti cambiano posizione a ogni generazione. Tocca una tessera per spostarli a mano.',
                                       style: TextStyle(
                                         color: AppColors.textSecondary,
                                         fontSize: 13,
@@ -1021,9 +1131,65 @@ class _FlowModePageState extends State<FlowModePage>
     );
   }
 
+  /// Riga di volume delle impostazioni: etichetta e percentuale sopra, lo
+  /// slider sotto a tutta larghezza — così etichetta e slider non si
+  /// contendono lo spazio nemmeno coi caratteri di sistema ingranditi.
+  Widget _buildVolumeRow({
+    required IconData icon,
+    required String label,
+    required double value,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.textSecondary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${(value * 100).round()}%',
+              maxLines: 1,
+              softWrap: false,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(trackHeight: 3),
+          child: Slider(
+            value: value,
+            activeColor: AppColors.primary,
+            inactiveColor: AppColors.inactiveTrack,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: AppColors.textSecondary,
             fontSize: 12,
@@ -1085,12 +1251,47 @@ class _FlowModePageState extends State<FlowModePage>
 
   void _toggleSlotAccent(int index) {
     if (index >= _generatedSlots.length) return;
+    // Massimo a 0 = accenti disattivati: la griglia non ne accetta.
+    if (_maxAccents <= 0) return;
     HapticFeedback.selectionClick();
     setState(() {
       final bool accented = !_accentedSlots.remove(index);
       if (accented) _accentedSlots.add(index);
-      _generatedSlots[index] =
-          _generatedSlots[index].copyWith(isAccented: accented);
+      _setAccented(index, accented);
+
+      // Oltre il massimo esce l'accento più vecchio: con massimo 1 toccare
+      // un'altra tessera sposta l'accento invece di rifiutare il tocco.
+      while (_accentedSlots.length > _maxAccents) {
+        final int oldest = _accentedSlots.first;
+        _accentedSlots.remove(oldest);
+        _setAccented(oldest, false);
+      }
+    });
+    _pushSlotsToPlayback();
+  }
+
+  void _setAccented(int index, bool accented) {
+    if (index >= _generatedSlots.length) return;
+    _generatedSlots[index] =
+        _generatedSlots[index].copyWith(isAccented: accented);
+  }
+
+  /// Cambia il massimo di accenti attivi e ripesca subito le posizioni, per
+  /// far vedere (e sentire) l'effetto dell'impostazione.
+  void _setMaxAccents(int value) {
+    final int clamped = value.clamp(0, _slotsCount);
+    if (clamped == _maxAccents) return;
+    setState(() {
+      _maxAccents = clamped;
+      _accentedSlots
+        ..clear()
+        ..addAll(FlowModePage.randomAccentPositions(
+          slotCount: _generatedSlots.length,
+          maxAccents: _maxAccents,
+        ));
+      for (int i = 0; i < _generatedSlots.length; i++) {
+        _setAccented(i, _accentedSlots.contains(i));
+      }
     });
     _pushSlotsToPlayback();
   }
@@ -1117,7 +1318,11 @@ class _FlowModePageState extends State<FlowModePage>
 
   void _decrementSlotCount() {
     if (_slotsCount <= 2) return;
-    setState(() => _slotsCount--);
+    setState(() {
+      _slotsCount--;
+      // Non si possono accentare più movimenti di quanti ne restano.
+      if (_maxAccents > _slotsCount) _maxAccents = _slotsCount;
+    });
     _generateNewRhythm();
   }
 
