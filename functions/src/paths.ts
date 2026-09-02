@@ -10,6 +10,8 @@ export const paths = {
   achievements: (uid: string) => `users/${uid}/achievements`,
   pointHistory: (uid: string) => `users/${uid}/pointHistory`,
   leaderboardEntries: (boardId: string) => `leaderboards/${boardId}/entries`,
+  /** Public read-only doc with the app's min supported / latest version. */
+  appVersionConfig: 'config/appVersion',
 } as const;
 
 /** `weekly-2026-28` style board id for the ISO week containing `when`. */

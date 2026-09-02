@@ -322,10 +322,15 @@ verification checklist (§3.2).
       re-run `dart run flutter_launcher_icons` after logo changes).
 - [ ] Splash/launch screen still correct (Android `LaunchTheme`, iOS
       `LaunchScreen.storyboard`).
-- [ ] Permissions audit: AndroidManifest adds none beyond defaults; iOS purpose
-      strings — none needed today (no camera/photos/mic/location APIs in use).
-      **Re-check whenever a new plugin is added.**
+- [ ] Permissions audit: AndroidManifest adds no permissions beyond defaults
+      (it does declare a `<queries>` entry for `https` VIEW intents, required
+      by url_launcher on Android 11+ so the update button can reach the
+      store); iOS purpose strings — none needed today (no camera/photos/mic/
+      location APIs in use). **Re-check whenever a new plugin is added.**
 - [ ] Release notes written (per store language).
+- [ ] Version gate planned: after the rollout, update `config/appVersion` in
+      Firestore (§3.3) — `latestVersion` to offer the update, and
+      `minSupportedVersion` only when older builds must be locked out.
 
 ### 3.2 Post-build verification (internal testing / TestFlight build)
 
@@ -348,7 +353,37 @@ Install the store-delivered build (not a local one) on a physical device:
       shows the upload key (Android); Organizer/ASC shows the Distribution
       cert (iOS)
 
-### 3.3 Ship
+### 3.3 The version gate (`config/appVersion`)
+
+The app reads one public Firestore document to decide whether an installed
+build is still allowed in and whether to offer an update. Nothing is hardcoded
+in the app: with the document absent (or unreachable) nobody is blocked and no
+dialog appears, which is also what happens offline and in local mode.
+
+Firestore console → collection `config` → document `appVersion`:
+
+| field | example | effect |
+| --- | --- | --- |
+| `minSupportedVersion` | `1.0.0` | builds **below** this see only the out-of-date screen, signed in or not |
+| `latestVersion` | `1.2.0` | builds below this get the "new version" dialog at startup (skippable) |
+| `androidStoreUrl` | `https://play.google.com/store/apps/details?id=com.nectares.beatter` | where the Update button goes on Android |
+| `iosStoreUrl` | `https://apps.apple.com/app/id0000000000` | same on iOS — **fill this in after the first App Store publication**, otherwise the button falls back to an App Store search |
+| `blockingMessage` | *(optional)* | replaces the default text on the blocking screen |
+| `releaseNotes` | *(optional)* | one line shown in the update dialog |
+
+Versions compare segment by segment (`1.10.0` > `1.9.9`); anything after `+` or
+`-` is ignored, so write the `version:` from `pubspec.yaml` without its build
+number. "Skip this version" is remembered per device until `latestVersion`
+moves again.
+
+Release order that matters: **publish the store build first, then raise
+`latestVersion`, and raise `minSupportedVersion` only once the new build has
+had time to roll out** — raising it early locks out users whose store update
+has not reached them yet. The rules for this document ship in
+`firestore.rules` (public read, no client writes): deploy them once with
+`firebase deploy --only firestore:rules`.
+
+### 3.4 Ship
 
 - [ ] Android: Play Console → Internal testing → verify → Production with
       **staged rollout** (10–20% start)

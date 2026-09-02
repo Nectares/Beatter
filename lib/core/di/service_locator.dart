@@ -11,10 +11,12 @@ import '../../data/firebase/firestore_gamification_repositories.dart';
 import '../../data/firebase/firestore_paths.dart';
 import '../../data/firebase/firestore_profile_repository.dart';
 import '../../data/firebase/firestore_settings_repository.dart';
+import '../../data/firebase/firestore_version_repository.dart';
 import '../../data/firebase/firestore_workout_repository.dart';
 import '../../data/local/local_auth_repository.dart';
 import '../../data/local/local_document_store.dart';
 import '../../data/local/local_gamification.dart';
+import '../../data/local/local_version_repository.dart';
 import '../../data/local/noop_services.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../domain/repositories/document_store.dart';
@@ -22,6 +24,7 @@ import '../../domain/repositories/gamification_repositories.dart';
 import '../../domain/repositories/media_storage_repository.dart';
 import '../../domain/repositories/profile_repository.dart';
 import '../../domain/repositories/settings_repository.dart';
+import '../../domain/repositories/version_repository.dart';
 import '../../domain/repositories/workout_repository.dart';
 import '../../domain/services/analytics_tracker.dart';
 import '../../domain/services/crash_reporter.dart';
@@ -88,6 +91,8 @@ abstract final class ServiceLocator {
           statistics: get<StatisticsRepository>(),
           crashReporter: get<CrashReporter>(),
         ));
+    _getIt.registerLazySingleton<VersionRepository>(
+        () => FirestoreVersionRepository());
     _getIt.registerLazySingleton<DocumentStoreFactory>(
         () => const _FirebaseDocumentStoreFactory());
   }
@@ -114,6 +119,8 @@ abstract final class ServiceLocator {
         () => const UnavailableMediaStorageRepository());
     _getIt.registerLazySingleton<WorkoutRepository>(
         () => LocalWorkoutRepository(engine));
+    _getIt.registerLazySingleton<VersionRepository>(
+        () => const LocalVersionRepository());
     _getIt.registerLazySingleton<DocumentStoreFactory>(
         () => const _LocalDocumentStoreFactory());
   }

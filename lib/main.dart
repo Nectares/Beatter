@@ -5,6 +5,7 @@ import 'core/di/service_locator.dart';
 import 'core/firebase/firebase_bootstrap.dart';
 import 'core/widgets/persistent_banner_ad.dart';
 import 'features/auth/presentation/pages/auth_gate.dart';
+import 'features/update/presentation/version_gate.dart';
 import 'theme/app_theme.dart';
 
 /// Build-time switch for screenshot/demo runs: skips Firebase entirely so the
@@ -30,11 +31,18 @@ Future<void> main() async {
 class BeatterApp extends StatelessWidget {
   const BeatterApp({super.key});
 
+  /// Il [VersionGate] vive nel `builder`, sopra il Navigator: per aprire il
+  /// dialog dell'aggiornamento gli serve un contesto che un Navigator ce
+  /// l'abbia sopra.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Beatter',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
       theme: AppTheme.lightTheme,
       // AuthGate resumes a persisted Firebase session (straight to the
       // shell/dashboard) and only shows the login page when signed out.
@@ -42,11 +50,16 @@ class BeatterApp extends StatelessWidget {
       builder: (context, child) {
         final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
         return Material(
-          child: Column(
-            children: [
-              Expanded(child: child ?? const SizedBox.shrink()),
-              if (!keyboardVisible) const PersistentBannerAd(),
-            ],
+          // Sopra ogni schermata, login compreso: una build fuori supporto
+          // vede solo la pagina di aggiornamento, anche a sessione aperta.
+          child: VersionGate(
+            navigatorKey: navigatorKey,
+            child: Column(
+              children: [
+                Expanded(child: child ?? const SizedBox.shrink()),
+                if (!keyboardVisible) const PersistentBannerAd(),
+              ],
+            ),
           ),
         );
       },

@@ -14,4 +14,8 @@ abstract final class FirestorePaths {
   static String pointHistory(String uid) => 'users/$uid/pointHistory';
   static String leaderboardEntries(String boardId) => 'leaderboards/$boardId/entries';
   static String username(String handleLower) => 'usernames/$handleLower';
+
+  /// Requisiti di versione dell'app: documento pubblico in lettura, scritto
+  /// solo dalla console/Admin SDK.
+  static const String appVersionConfig = 'config/appVersion';
 }

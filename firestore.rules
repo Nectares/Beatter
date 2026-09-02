@@ -89,6 +89,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // App version requirements (config/appVersion): readable by anyone,
+    // including signed-out users and clients too old to be let in — that's
+    // the whole point, they must be able to learn they have to update.
+    // Written from the console / Admin SDK only.
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Username reservations for future social handles. Doc id is the
     // lowercase handle; create-if-absent gives atomic uniqueness.
     match /usernames/{handle} {
