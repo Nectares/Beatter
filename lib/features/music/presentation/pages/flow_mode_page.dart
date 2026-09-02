@@ -15,6 +15,7 @@ import '../../../../core/widgets/beatter_app_bar.dart';
 import '../../../../core/widgets/beatter_scaffold.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../widgets/metronome_sound_dropdown.dart';
+import '../widgets/volume_slider_row.dart';
 
 class FlowModePage extends StatefulWidget {
   const FlowModePage({super.key});
@@ -336,9 +337,22 @@ class _FlowModePageState extends State<FlowModePage>
   }
 
   // ── Playback Listener ────────────────────────────────────────────────────
+  bool _wasPlaying = false;
+  bool _wasPaused = false;
+
   void _onPlaybackChanged() {
     if (!mounted) return;
-    setState(() {});
+    // L'evidenziazione della nota corrente viaggia sul listenable
+    // `highlight` e ridisegna le sole tessere: qui si ricostruisce la
+    // pagina solo quando cambia lo stato di riproduzione, non a ogni
+    // semicroma.
+    final bool playing = _playbackService.isPlaying;
+    final bool paused = _playbackService.isPaused;
+    if (playing != _wasPlaying || paused != _wasPaused) {
+      _wasPlaying = playing;
+      _wasPaused = paused;
+      setState(() {});
+    }
     _syncBeatPulse();
     _scrollActiveSlotIntoView();
   }
@@ -423,10 +437,9 @@ class _FlowModePageState extends State<FlowModePage>
     return 'Molto lenta';
   }
 
-  int get _currentBeatNumber {
-    final idx = _playbackService.currentElementIndex;
-    if (idx < 0) return 1;
-    return (idx % _slotsCount) + 1;
+  int _beatNumberFor(int elementIndex) {
+    if (elementIndex < 0) return 1;
+    return (elementIndex % _slotsCount) + 1;
   }
 
   // ── Tile-size helper ─────────────────────────────────────────────────────
@@ -978,7 +991,7 @@ class _FlowModePageState extends State<FlowModePage>
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              _buildVolumeRow(
+                              VolumeSliderRow(
                                 icon: Icons.volume_up_rounded,
                                 label: 'Volume metronomo',
                                 value: _playbackService.metronomeVolume,
@@ -989,7 +1002,7 @@ class _FlowModePageState extends State<FlowModePage>
                                   );
                                 },
                               ),
-                              _buildVolumeRow(
+                              VolumeSliderRow(
                                 icon: Icons.music_note_rounded,
                                 label: 'Volume figurazioni',
                                 value: _playbackService.noteVolume,
@@ -1128,60 +1141,6 @@ class _FlowModePageState extends State<FlowModePage>
           },
         );
       },
-    );
-  }
-
-  /// Riga di volume delle impostazioni: etichetta e percentuale sopra, lo
-  /// slider sotto a tutta larghezza — così etichetta e slider non si
-  /// contendono lo spazio nemmeno coi caratteri di sistema ingranditi.
-  Widget _buildVolumeRow({
-    required IconData icon,
-    required String label,
-    required double value,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 18, color: AppColors.textSecondary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${(value * 100).round()}%',
-              maxLines: 1,
-              softWrap: false,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(trackHeight: 3),
-          child: Slider(
-            value: value,
-            activeColor: AppColors.primary,
-            inactiveColor: AppColors.inactiveTrack,
-            onChanged: onChanged,
-          ),
-        ),
-      ],
     );
   }
 
@@ -1572,8 +1531,6 @@ class _FlowModePageState extends State<FlowModePage>
     required double radius,
   }) {
     final slot = _generatedSlots[index];
-    final bool isActive = _playbackService.isPlaying &&
-        _playbackService.currentElementIndex == index;
     final bool isAccented = slot.isAccented;
 
     return GestureDetector(
@@ -1582,76 +1539,85 @@ class _FlowModePageState extends State<FlowModePage>
       // togliere l'accento): è l'unico gesto sulla griglia, quindi non
       // ruba niente ad altre interazioni.
       onTap: () => _toggleSlotAccent(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        // width/height animate when tileSize changes (slot-count change)
-        width: tileSize,
-        height: tileSize,
-        // scale animates for the active-beat highlight
-        transform: Matrix4.identity()
-          ..translateByDouble(tileSize / 2, tileSize / 2, 0, 1)
-          ..scaleByDouble(isActive ? 1.06 : 1.0, isActive ? 1.06 : 1.0, 1, 1)
-          ..translateByDouble(-tileSize / 2, -tileSize / 2, 0, 1),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(
-            color: isActive
-                ? AppColors.primary
-                : isAccented
-                ? AppColors.tertiary
-                : AppColors.surfaceBorder,
-            width: isActive
-                ? 3.5
-                : isAccented
-                ? 2.5
-                : 1.5,
+      // Solo questa tessera si ricostruisce quando l'evidenziazione si
+      // sposta; l'immagine della figurazione passa dal `child` del builder
+      // e non viene ricreata a ogni nota.
+      child: ValueListenableBuilder<PlaybackHighlight>(
+        valueListenable: _playbackService.highlight,
+        child: Padding(
+          padding: EdgeInsets.all(imagePadding),
+          child: Image.asset(
+            slot.assetPath,
+            fit: BoxFit.contain,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isActive
-                  ? AppColors.primary.withValues(alpha: 0.4)
-                  : Colors.black.withValues(alpha: 0.04),
-              blurRadius: isActive ? 16 : 6,
-              spreadRadius: isActive ? 2 : 0,
-              offset: isActive ? const Offset(0, 4) : const Offset(0, 2),
-            ),
-          ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: Stack(
-            children: [
-              Center(
-                child: Padding(
-                  padding: EdgeInsets.all(imagePadding),
-                  child: Image.asset(
-                    slot.assetPath,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+        builder: (context, highlight, image) {
+          final bool isActive =
+              _playbackService.isPlaying && highlight.elementIndex == index;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            // width/height animate when tileSize changes (slot-count change)
+            width: tileSize,
+            height: tileSize,
+            // scale animates for the active-beat highlight
+            transform: Matrix4.identity()
+              ..translateByDouble(tileSize / 2, tileSize / 2, 0, 1)
+              ..scaleByDouble(isActive ? 1.06 : 1.0, isActive ? 1.06 : 1.0, 1, 1)
+              ..translateByDouble(-tileSize / 2, -tileSize / 2, 0, 1),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(
+                color: isActive
+                    ? AppColors.primary
+                    : isAccented
+                    ? AppColors.tertiary
+                    : AppColors.surfaceBorder,
+                width: isActive
+                    ? 3.5
+                    : isAccented
+                    ? 2.5
+                    : 1.5,
               ),
-              if (isAccented)
-                Positioned(
-                  top: tileSize * 0.04,
-                  left: tileSize * 0.08,
-                  // Il segno di accento della notazione, ">".
-                  child: Text(
-                    '>',
-                    maxLines: 1,
-                    softWrap: false,
-                    style: TextStyle(
-                      fontSize: tileSize * 0.26,
-                      height: 1.0,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.tertiary,
-                    ),
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: isActive
+                      ? AppColors.primary.withValues(alpha: 0.4)
+                      : Colors.black.withValues(alpha: 0.04),
+                  blurRadius: isActive ? 16 : 6,
+                  spreadRadius: isActive ? 2 : 0,
+                  offset: isActive ? const Offset(0, 4) : const Offset(0, 2),
                 ),
-            ],
-          ),
-        ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(radius),
+              child: Stack(
+                children: [
+                  Center(child: image),
+                  if (isAccented)
+                    Positioned(
+                      top: tileSize * 0.04,
+                      left: tileSize * 0.08,
+                      // Il segno di accento della notazione, ">".
+                      child: Text(
+                        '>',
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: tileSize * 0.26,
+                          height: 1.0,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.tertiary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1663,8 +1629,6 @@ class _FlowModePageState extends State<FlowModePage>
     if (!_playbackService.isPlaying) {
       return const SizedBox(height: 52);
     }
-
-    final beatNum = _currentBeatNumber;
 
     return AnimatedBuilder(
       animation: _beatPulseController,
@@ -1693,14 +1657,20 @@ class _FlowModePageState extends State<FlowModePage>
             'MOVIMENTO: ',
             style: textTheme.labelMedium?.copyWith(color: AppColors.textSecondary, letterSpacing: 1.1),
           ),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 150),
-            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-            child: Text(
-              '$beatNum',
-              key: ValueKey<int>(beatNum),
-              style: textTheme.displaySmall?.copyWith(color: AppColors.primary, fontSize: 24),
-            ),
+          ValueListenableBuilder<PlaybackHighlight>(
+            valueListenable: _playbackService.highlight,
+            builder: (context, highlight, _) {
+              final int beatNum = _beatNumberFor(highlight.elementIndex);
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 150),
+                transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                child: Text(
+                  '$beatNum',
+                  key: ValueKey<int>(beatNum),
+                  style: textTheme.displaySmall?.copyWith(color: AppColors.primary, fontSize: 24),
+                ),
+              );
+            },
           ),
         ],
       ),

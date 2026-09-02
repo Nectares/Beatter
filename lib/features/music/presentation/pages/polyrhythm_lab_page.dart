@@ -58,6 +58,9 @@ class _PolyrhythmLabPageState extends State<PolyrhythmLabPage>
     final bool visible = ShellVisibility.of(context);
     if (_lastAppliedVisibility == visible) return;
     _lastAppliedVisibility = visible;
+    // Alla prima apertura della scheda: da qui in poi i suoni delle voci
+    // sono pronti, prima di allora la modalità non costa nessun player.
+    if (visible) _controller.primeVoiceSounds();
     SystemChrome.setPreferredOrientations(
       visible
           ? const [

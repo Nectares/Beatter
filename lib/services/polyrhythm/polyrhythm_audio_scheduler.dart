@@ -25,11 +25,20 @@ class AudioScheduler {
   final Map<String, AudioPlayerPool> _pools = {};
   double _masterVolume = 0.85;
 
-  AudioScheduler() {
-    for (final entry in _assetBySoundId.entries) {
-      final pool = AudioPlayerPool(assetPath: entry.value, size: 3);
-      pool.setVolume(_masterVolume);
-      _pools[entry.key] = pool;
+  /// Alloca i pool dei suoni indicati, se non ci sono già.
+  ///
+  /// I player nascono qui — al cambio di voci attive — e non nel
+  /// costruttore: la pagina resta montata nell'IndexedStack della shell,
+  /// quindi allocare tutti e sette gli strumenti all'avvio significava
+  /// tenere vivi ventun player nativi per una modalità magari mai aperta.
+  /// Nemmeno in [trigger]: creare un player sul colpo vorrebbe dire
+  /// caricarne la sorgente in ritardo.
+  void prime(Iterable<String> soundIds) {
+    for (final soundId in soundIds) {
+      final asset = _assetBySoundId[soundId];
+      if (asset == null || _pools.containsKey(soundId)) continue;
+      _pools[soundId] = AudioPlayerPool(assetPath: asset, size: 3)
+        ..setVolume(_masterVolume);
     }
   }
 
@@ -43,6 +52,14 @@ class AudioScheduler {
   }
 
   void trigger(String soundId) {
+    final pool = _pools[soundId];
+    if (pool != null) {
+      pool.play();
+      return;
+    }
+    // Paracadute: una voce mai preparata suona comunque (il primo colpo
+    // può arrivare in ritardo) invece di restare muta per sempre.
+    prime([soundId]);
     _pools[soundId]?.play();
   }
 

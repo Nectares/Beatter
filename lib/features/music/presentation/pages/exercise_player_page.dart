@@ -17,6 +17,7 @@ import '../../../../services/rhythm_playback_service.dart';
 import '../../../../widgets/music_staff/wrapped_staff_view.dart';
 import '../widgets/metronome_sound_dropdown.dart';
 import '../widgets/playback_button.dart';
+import '../widgets/volume_slider_row.dart';
 
 /// Views a single generated rhythm reading exercise: multi-system staff,
 /// single-pass playback with live highlighting, save/rename, regenerate
@@ -39,6 +40,22 @@ class ExercisePlayerPage extends StatefulWidget {
   @override
   State<ExercisePlayerPage> createState() => _ExercisePlayerPageState();
 }
+
+/// Lo stato del servizio che la schermata del player rende visibile — vedi
+/// `_ExercisePlayerPageState._visibleState`.
+typedef PlayerVisibleState = ({
+  bool playing,
+  bool paused,
+  bool echo,
+  int good,
+  int miss,
+  int streak,
+  bool metronomeOn,
+  String metronomeSound,
+  double metronomeVolume,
+  double noteVolume,
+  String instrument,
+});
 
 class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
   late RhythmExercise _exercise;
@@ -137,6 +154,27 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
     super.dispose();
   }
 
+  /// Quello che la pagina mostra davvero del servizio: trasporto, fase di
+  /// eco, punteggio e i controlli audio (che qui stanno nella schermata,
+  /// non in un pannello a parte). L'evidenziazione della nota non c'è
+  /// dentro: quella arriva al pentagramma dal listenable `highlight` e ne
+  /// ridisegna solo quello, invece di ricostruire la pagina a ogni nota.
+  PlayerVisibleState get _visibleState => (
+        playing: _playbackService.isPlaying,
+        paused: _playbackService.isPaused,
+        echo: _playbackService.isEchoPhase,
+        good: _playbackService.echoGood,
+        miss: _playbackService.echoMiss,
+        streak: _playbackService.echoStreak,
+        metronomeOn: _playbackService.isMetronomeEnabled,
+        metronomeSound: _playbackService.metronomeSound,
+        metronomeVolume: _playbackService.metronomeVolume,
+        noteVolume: _playbackService.noteVolume,
+        instrument: _playbackService.soundInstrument,
+      );
+
+  PlayerVisibleState? _lastVisibleState;
+
   void _onPlaybackChanged() {
     // Transizione play → fermo (fine naturale o stop, non la pausa, che
     // riprende la stessa sessione): salva il punteggio.
@@ -146,7 +184,11 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
     }
     _wasPlaying = playing;
 
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final state = _visibleState;
+    if (state == _lastVisibleState) return;
+    _lastVisibleState = state;
+    setState(() {});
   }
 
   bool get _isSaved => _exercise.id.isNotEmpty;
@@ -297,17 +339,21 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
                       child: FramedStaffCard(
                         outerPadding: EdgeInsets.zero,
                         innerPadding: const EdgeInsets.all(AppSpacing.md),
-                        child: WrappedStaffView(
-                          measures: _exercise.measures,
-                          activeMeasureIndex: _playbackService.currentMeasureIndex,
-                          activeElementIndex: _playbackService.currentElementIndex,
-                          activeTripletIndex: _playbackService.currentTripletIndex,
-                          singleLine: true,
-                          // Durante la finestra di eco la guida cambia
-                          // colore: "ascolta" è primario, "ripeti" terziario.
-                          activeColor: _playbackService.isEchoPhase
-                              ? AppColors.tertiary
-                              : AppColors.primary,
+                        child: ValueListenableBuilder<PlaybackHighlight>(
+                          valueListenable: _playbackService.highlight,
+                          builder: (context, highlight, _) => WrappedStaffView(
+                            measures: _exercise.measures,
+                            activeMeasureIndex: highlight.measureIndex,
+                            activeElementIndex: highlight.elementIndex,
+                            activeTripletIndex: highlight.tripletIndex,
+                            singleLine: true,
+                            // Durante la finestra di eco la guida cambia
+                            // colore: "ascolta" è primario, "ripeti"
+                            // terziario.
+                            activeColor: highlight.isEcho
+                                ? AppColors.tertiary
+                                : AppColors.primary,
+                          ),
                         ),
                       ),
                     ),
@@ -319,6 +365,21 @@ class _ExercisePlayerPageState extends State<ExercisePlayerPage> {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _buildMetronomeToggle(),
+                    const SizedBox(height: AppSpacing.xs),
+                    VolumeSliderRow(
+                      icon: Icons.volume_up_rounded,
+                      label: 'Volume metronomo',
+                      value: _playbackService.metronomeVolume,
+                      onChanged: (value) =>
+                          _playbackService.updateSettings(metronomeVolume: value),
+                    ),
+                    VolumeSliderRow(
+                      icon: Icons.music_note_rounded,
+                      label: 'Volume note',
+                      value: _playbackService.noteVolume,
+                      onChanged: (value) =>
+                          _playbackService.updateSettings(noteVolume: value),
+                    ),
                     if (widget.readingControls) ...[
                       const SizedBox(height: AppSpacing.md),
                       Padding(

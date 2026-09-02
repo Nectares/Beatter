@@ -56,6 +56,14 @@ class PolyrhythmController extends ChangeNotifier {
     engine.addBeatListener(_onBeat);
   }
 
+  /// Prepara i suoni delle voci attive. La pagina la chiama quando diventa
+  /// visibile: finché il Lab resta una scheda di sfondo non alloca nessun
+  /// player nativo, che sui dispositivi poco potenti è la differenza fra
+  /// ventun player vivi all'avvio e zero.
+  void primeVoiceSounds() {
+    audioScheduler.prime(activePolygons.map((polygon) => polygon.soundId));
+  }
+
   final PolyrhythmEngine engine;
   final AudioScheduler audioScheduler = AudioScheduler();
 
@@ -136,6 +144,8 @@ class PolyrhythmController extends ChangeNotifier {
   /// mutation of hardcoded primary/secondary/tertiary fields.
   void setSubdivisions(List<int> subdivisions) {
     activePolygons = _buildPolygons(subdivisions);
+    // I suoni delle voci nuove vanno preparati adesso, non al primo colpo.
+    primeVoiceSounds();
     engine.setPolygons(activePolygons);
     recentBeatEvents.clear();
     mutedPolygonIds.clear();

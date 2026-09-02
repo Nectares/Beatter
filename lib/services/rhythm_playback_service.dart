@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/rhythm_element.dart';
 
@@ -34,6 +34,45 @@ class PlaybackEvent {
   });
 }
 
+/// Dove si trova l'evidenziazione in questo istante.
+///
+/// Viaggia su un [ValueNotifier] a parte ([RhythmPlaybackService.highlight])
+/// perché cambia a ogni nota: le pagine possono ridisegnare solo la griglia
+/// o il pentagramma invece dell'intera schermata a ritmo di semicroma —
+/// sui dispositivi poco potenti è la differenza fra ricostruire centinaia
+/// di widget al secondo e ricostruirne una manciata.
+class PlaybackHighlight {
+  final int measureIndex;
+  final int elementIndex;
+  final int? tripletIndex;
+
+  /// True mentre scorre una finestra di eco del Reading Mode.
+  final bool isEcho;
+
+  const PlaybackHighlight({
+    required this.measureIndex,
+    required this.elementIndex,
+    this.tripletIndex,
+    this.isEcho = false,
+  });
+
+  /// Niente di evidenziato (fermi, o guida spenta durante l'eco).
+  static const PlaybackHighlight none =
+      PlaybackHighlight(measureIndex: -1, elementIndex: -1);
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlaybackHighlight &&
+      other.measureIndex == measureIndex &&
+      other.elementIndex == elementIndex &&
+      other.tripletIndex == tripletIndex &&
+      other.isEcho == isEcho;
+
+  @override
+  int get hashCode =>
+      Object.hash(measureIndex, elementIndex, tripletIndex, isEcho);
+}
+
 /// Gestore del pool di player audio per evitare tagli di campioni in decadimento.
 class AudioPlayerPool {
   final String assetPath;
@@ -41,6 +80,13 @@ class AudioPlayerPool {
   final List<AudioPlayer> _pool = [];
   int _nextIndex = 0;
   double _volume = 1.0;
+
+  /// Quanti player nativi sono vivi nel processo. audioplayers ne alloca
+  /// uno per oggetto (su Android un MediaPlayer più il suo event channel),
+  /// quindi è la metrica che conta sui dispositivi poco potenti: i pool si
+  /// creano su richiesta proprio per tenerla bassa.
+  static int get livePlayers => _livePlayers;
+  static int _livePlayers = 0;
 
   AudioPlayerPool({required this.assetPath, this.size = 3}) {
     for (int i = 0; i < size; i++) {
@@ -50,6 +96,7 @@ class AudioPlayerPool {
       player.setSource(AssetSource(assetPath));
       _pool.add(player);
     }
+    _livePlayers += size;
   }
 
   void play() {
@@ -75,6 +122,8 @@ class AudioPlayerPool {
     for (final player in _pool) {
       player.dispose();
     }
+    _livePlayers -= _pool.length;
+    _pool.clear();
   }
 }
 
@@ -195,6 +244,15 @@ class RhythmPlaybackService extends ChangeNotifier {
   /// (evita drift tra un loop e il successivo).
   double _loopStartMs = 0.0;
 
+  final ValueNotifier<PlaybackHighlight> _highlight =
+      ValueNotifier(PlaybackHighlight.none);
+
+  /// L'evidenziazione corrente, aggiornata a ogni nota. Le pagine ci
+  /// appendono solo la porzione di UI che cambia davvero (vedi
+  /// [PlaybackHighlight]); `notifyListeners` resta per lo stato "grosso"
+  /// — play/pausa/stop, impostazioni, punteggio.
+  ValueListenable<PlaybackHighlight> get highlight => _highlight;
+
   // Getters
   int get bpm => _bpm;
   bool get isMetronomeEnabled => _isMetronomeEnabled;
@@ -223,25 +281,69 @@ class RhythmPlaybackService extends ChangeNotifier {
   /// (used by Composer Mode) — left off elsewhere so Flow Mode/Sheet Mode
   /// don't pay for two dozen unused audio players.
   RhythmPlaybackService({bool enableMelodicPlayback = false})
-      : _enableMelodicPlayback = enableMelodicPlayback {
-    _initAudioPools();
+      : _enableMelodicPlayback = enableMelodicPlayback;
+
+  /// Alloca i pool che servono davvero, e li alloca *prima* di suonare.
+  ///
+  /// Il servizio nasce senza nessun player: le pagine restano montate
+  /// nell'IndexedStack della shell, quindi allocare tutto nel costruttore
+  /// voleva dire decine di player nativi vivi per modalità mai aperte. Qui
+  /// si creano solo il metronomo, lo strumento selezionato (col gemello
+  /// accentato se il pattern ha accenti) e — in melodico — le sole altezze
+  /// presenti nella timeline.
+  ///
+  /// Sempre da `prepare`/`updateSettings`, mai da `_executeEvent`: creare
+  /// un player sull'attacco della nota significherebbe caricarne la
+  /// sorgente in ritardo, che è esattamente la latenza che i pool evitano.
+  void _ensureAudioForTimeline({
+    Iterable<String?>? noteNames,
+    bool needsTapFeedback = false,
+  }) {
+    _ensureMetronomePools(_metronomeSound);
+    _ensureInstrumentPools();
+    if (needsTapFeedback) _ensureTapPool();
+    if (_enableMelodicPlayback && noteNames != null) {
+      _ensureNotePools(noteNames);
+    }
   }
 
-  void _initAudioPools() {
-    _ensureMetronomePools(_metronomeSound);
-    _stickPool = AudioPlayerPool(assetPath: 'audio/stick.wav', size: 3);
-    _snarePool = AudioPlayerPool(assetPath: 'audio/snare.wav', size: 4);
-    // Gli accenti sono radi: due player a testa bastano.
-    _stickAccentPool = AudioPlayerPool(assetPath: 'audio/stick.wav', size: 2);
-    _snareAccentPool = AudioPlayerPool(assetPath: 'audio/snare.wav', size: 2);
+  AudioPlayerPool _newPool(String assetPath, int size) {
+    // Il pool nasce a volume pieno: il prossimo _applyVolumes deve
+    // riallinearlo all'impostazione corrente.
+    _appliedVolumes = null;
+    return AudioPlayerPool(assetPath: assetPath, size: size);
+  }
 
-    if (_enableMelodicPlayback) {
-      for (final noteName in _melodicNoteNames) {
-        _notePools[noteName] = AudioPlayerPool(assetPath: 'audio/notes/$noteName.wav', size: 2);
+  void _ensureInstrumentPools() {
+    if (_soundInstrument == 'silent' || _soundInstrument == 'melodic') return;
+
+    if (_soundInstrument == 'snare') {
+      _snarePool ??= _newPool('audio/snare.wav', 4);
+      if (_patternHasAccents) {
+        _snareAccentPool ??= _newPool('audio/snare.wav', 2);
+      }
+    } else {
+      // Qualsiasi altro valore suona con la bacchetta (vedi _executeEvent).
+      _stickPool ??= _newPool('audio/stick.wav', 3);
+      if (_patternHasAccents) {
+        _stickAccentPool ??= _newPool('audio/stick.wav', 2);
       }
     }
+    _applyVolumes();
+  }
 
-    _appliedVolumes = null;
+  /// Il pad TAP del Reading Mode suona la bacchetta anche quando le note
+  /// sono mute, quindi il suo pool va allocato con l'eco.
+  void _ensureTapPool() {
+    _stickPool ??= _newPool('audio/stick.wav', 3);
+    _applyVolumes();
+  }
+
+  void _ensureNotePools(Iterable<String?> noteNames) {
+    for (final name in noteNames) {
+      if (name == null || !_melodicNoteNames.contains(name)) continue;
+      _notePools[name] ??= _newPool('audio/notes/$name.wav', 2);
+    }
     _applyVolumes();
   }
 
@@ -319,19 +421,30 @@ class RhythmPlaybackService extends ChangeNotifier {
     }
     if (noteVolume != null) _noteVolume = noteVolume.clamp(0.0, 1.0);
     if (metronomeVolume != null || noteVolume != null) _applyVolumes();
-    if (soundInstrument != null) _soundInstrument = soundInstrument;
+    if (soundInstrument != null) {
+      _soundInstrument = soundInstrument;
+      // Il pool dello strumento scelto si prepara qui, non al primo colpo.
+      _ensureInstrumentPools();
+    }
     if (echoGuideEnabled != null) _echoGuideEnabled = echoGuideEnabled;
     notifyListeners();
   }
 
   /// Feedback sonoro del tap dell'utente durante la finestra di eco del
   /// Reading Mode (bacchetta, indipendente dallo strumento delle note).
-  void playTap() => _stickPool?.play();
+  void playTap() {
+    // Di norma il pool c'è già (lo alloca preparePlayback con l'eco
+    // attiva): questo è il paracadute se il pad viene toccato prima.
+    _ensureTapPool();
+    _stickPool?.play();
+  }
 
   /// Fa sentire l'accento del metronomo selezionato: sceglierne uno dalle
   /// impostazioni senza poterlo ascoltare sarebbe alla cieca.
-  void previewMetronomeSound() =>
-      _metronomePools[_metronomeSound]?.accent.play();
+  void previewMetronomeSound() {
+    _ensureMetronomePools(_metronomeSound);
+    _metronomePools[_metronomeSound]?.accent.play();
+  }
 
   /// Costruisce la timeline esatta degli eventi in base al ritmo generato.
   ///
@@ -351,6 +464,11 @@ class RhythmPlaybackService extends ChangeNotifier {
       ..addAll(events);
     _totalBeats = totalBeats;
     _nextEventIndex = 0;
+
+    _ensureAudioForTimeline(
+      noteNames: events.map((event) => event.noteName),
+      needsTapFeedback: echoEveryMeasures != null,
+    );
 
     _echoTargetBeats = echoTapTargets(events);
     _echoTargetDone = List<bool>.filled(_echoTargetBeats.length, false);
@@ -617,7 +735,9 @@ class RhythmPlaybackService extends ChangeNotifier {
       ..addAll(events);
     _totalBeats = totalBeats;
     _nextEventIndex = 0;
+    // Prima gli accenti (decidono se serve il pool accentato), poi i pool.
     _setPatternHasAccents(slots.any((slot) => slot.isAccented));
+    _ensureAudioForTimeline();
   }
 
   /// Aggiorna le tessere del Flow Mode in modo fluido senza interrompere il loop.
@@ -690,6 +810,7 @@ class RhythmPlaybackService extends ChangeNotifier {
     _isPlaying = false;
     _isPaused = false;
     _isLooping = false;
+    _highlight.value = PlaybackHighlight.none;
     _stopwatch.stop();
     _stopwatch.reset();
     _schedulerTimer?.cancel();
@@ -800,6 +921,13 @@ class RhythmPlaybackService extends ChangeNotifier {
         _currentElementIndex = event.elementIndex;
         _currentTripletIndex = event.tripletIndex;
       }
+
+      _highlight.value = PlaybackHighlight(
+        measureIndex: _currentMeasureIndex,
+        elementIndex: _currentElementIndex,
+        tripletIndex: _currentTripletIndex,
+        isEcho: _isEchoPhase,
+      );
       notifyListeners();
     }
   }
@@ -807,6 +935,7 @@ class RhythmPlaybackService extends ChangeNotifier {
   @override
   void dispose() {
     _schedulerTimer?.cancel();
+    _highlight.dispose();
     for (final pools in _metronomePools.values) {
       pools.accent.dispose();
       pools.click.dispose();

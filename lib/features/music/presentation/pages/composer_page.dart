@@ -89,8 +89,20 @@ class _ComposerPageState extends State<ComposerPage> {
     super.dispose();
   }
 
+  bool _wasPlaying = false;
+  bool _wasPaused = false;
+
   void _onPlaybackChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // Come nelle altre modalità: la nota corrente viaggia sul listenable
+    // `highlight` e ridisegna il solo pentagramma, qui resta lo stato di
+    // riproduzione.
+    final bool playing = _playbackService.isPlaying;
+    final bool paused = _playbackService.isPaused;
+    if (playing == _wasPlaying && paused == _wasPaused) return;
+    _wasPlaying = playing;
+    _wasPaused = paused;
+    setState(() {});
   }
 
   List<RhythmMeasure> get _measures =>
@@ -444,18 +456,21 @@ class _ComposerPageState extends State<ComposerPage> {
     required double height,
   }) {
     return FramedStaffCard(
-      child: ComposerStaffView(
-        measures: measures,
-        canvasHeight: height,
-        selectedMeasureIndex: selectedPos?.$1 ?? -1,
-        selectedElementIndex: selectedPos?.$2 ?? -1,
-        activeMeasureIndex: _playbackService.currentMeasureIndex,
-        activeElementIndex: _playbackService.currentElementIndex,
-        onSelectNote: _handleSelectNote,
-        onDeselect: _handleDeselect,
-        onInsertNote: _handleInsertNote,
-        onDragStart: _handleDragStart,
-        onDragUpdate: _handleDragUpdate,
+      child: ValueListenableBuilder<PlaybackHighlight>(
+        valueListenable: _playbackService.highlight,
+        builder: (context, highlight, _) => ComposerStaffView(
+          measures: measures,
+          canvasHeight: height,
+          selectedMeasureIndex: selectedPos?.$1 ?? -1,
+          selectedElementIndex: selectedPos?.$2 ?? -1,
+          activeMeasureIndex: highlight.measureIndex,
+          activeElementIndex: highlight.elementIndex,
+          onSelectNote: _handleSelectNote,
+          onDeselect: _handleDeselect,
+          onInsertNote: _handleInsertNote,
+          onDragStart: _handleDragStart,
+          onDragUpdate: _handleDragUpdate,
+        ),
       ),
     );
   }

@@ -51,8 +51,20 @@ class _StaffPlaybackPanelState extends State<StaffPlaybackPanel> {
     }
   }
 
+  bool _wasPlaying = false;
+  bool _wasPaused = false;
+
   void _onPlaybackChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // L'evidenziazione della nota arriva al pentagramma dal listenable
+    // `highlight`, che ridisegna il solo pentagramma: qui si ricostruisce
+    // la schermata solo quando cambia lo stato di riproduzione.
+    final bool playing = _playbackService.isPlaying;
+    final bool paused = _playbackService.isPaused;
+    if (playing == _wasPlaying && paused == _wasPaused) return;
+    _wasPlaying = playing;
+    _wasPaused = paused;
+    setState(() {});
   }
 
   @override
@@ -91,11 +103,14 @@ class _StaffPlaybackPanelState extends State<StaffPlaybackPanel> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: FramedStaffCard(
               outerPadding: EdgeInsets.zero,
-              child: MusicStaffView(
-                measures: widget.measures,
-                activeMeasureIndex: _playbackService.currentMeasureIndex,
-                activeElementIndex: _playbackService.currentElementIndex,
-                activeTripletIndex: _playbackService.currentTripletIndex,
+              child: ValueListenableBuilder<PlaybackHighlight>(
+                valueListenable: _playbackService.highlight,
+                builder: (context, highlight, _) => MusicStaffView(
+                  measures: widget.measures,
+                  activeMeasureIndex: highlight.measureIndex,
+                  activeElementIndex: highlight.elementIndex,
+                  activeTripletIndex: highlight.tripletIndex,
+                ),
               ),
             ),
           ),
