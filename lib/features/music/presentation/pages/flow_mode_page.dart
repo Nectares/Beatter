@@ -18,6 +18,11 @@ import '../../../../core/widgets/empty_state.dart';
 class FlowModePage extends StatefulWidget {
   const FlowModePage({super.key});
 
+  /// Identifies the controls bar (steppers, speed slider and transport
+  /// buttons) so tests can assert its height stays put when a value or the
+  /// system text scale changes — a taller bar shrinks the tile grid above it.
+  static const Key controlsBarKey = ValueKey('flowModeControlsBar');
+
   @override
   State<FlowModePage> createState() => _FlowModePageState();
 }
@@ -1013,6 +1018,24 @@ class _FlowModePageState extends State<FlowModePage>
     _generateNewRhythm();
   }
 
+  // Width of a fixed-width stepper value label. The base widths were sized
+  // for the default text scale; at accessibility text scales the digits grow
+  // past them, and a label that doesn't fit its box wraps to a second line,
+  // making the stepper (and the whole controls bar) taller. Scaling the box
+  // with the ambient text scaler — never below the original width, so the
+  // default-scale layout is untouched — keeps that from happening for
+  // realistic values, and the labels' own maxLines: 1 keeps the height
+  // stable even when it does.
+  double _valueLabelWidth({
+    required double base,
+    required double fontSize,
+    required double emCount,
+  }) {
+    final double scaled =
+        MediaQuery.textScalerOf(context).scale(fontSize) * emCount;
+    return math.max(base, scaled);
+  }
+
   Widget _buildSlotCountControl({
     bool isCompact = false,
     bool isVertical = false,
@@ -1032,11 +1055,20 @@ class _FlowModePageState extends State<FlowModePage>
       size: buttonSize,
       onPressed: _slotsCount < 7 ? _incrementSlotCount : null,
     );
+    final double countFontSize = (isCompact ? 13.0 : 16.0) * scale;
     final countLabel = Text(
       '$_slotsCount',
       textAlign: TextAlign.center,
+      // Single line, always: inside the fixed-width box below a value that
+      // doesn't fit would otherwise wrap onto a second line, growing the
+      // stepper — and with it the whole controls bar, which pushes the
+      // Expanded tile grid up and forces it to relayout. See
+      // _valueLabelWidth for the other half of the guard.
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.visible,
       style: TextStyle(
-        fontSize: (isCompact ? 13.0 : 16.0) * scale,
+        fontSize: countFontSize,
         fontWeight: FontWeight.w900,
         color: AppColors.textPrimary,
       ),
@@ -1063,7 +1095,14 @@ class _FlowModePageState extends State<FlowModePage>
       mainAxisSize: MainAxisSize.min,
       children: [
         minusButton,
-        SizedBox(width: isCompact ? 26 : 34, child: countLabel),
+        SizedBox(
+          width: _valueLabelWidth(
+            base: isCompact ? 26 : 34,
+            fontSize: countFontSize,
+            emCount: 1.0,
+          ),
+          child: countLabel,
+        ),
         plusButton,
       ],
     );
@@ -1122,6 +1161,9 @@ class _FlowModePageState extends State<FlowModePage>
           ),
           Text(
             '$_bpm',
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.visible,
             style: TextStyle(
               fontSize: 11 * scale,
               fontWeight: FontWeight.bold,
@@ -1143,10 +1185,13 @@ class _FlowModePageState extends State<FlowModePage>
         Expanded(child: _buildSpeedSlider()),
         const SizedBox(width: 6),
         SizedBox(
-          width: 36,
+          width: _valueLabelWidth(base: 36, fontSize: 13, emCount: 2.0),
           child: Text(
             '$_bpm',
             textAlign: TextAlign.end,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.visible,
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.bold,
@@ -1467,6 +1512,7 @@ class _FlowModePageState extends State<FlowModePage>
     final bool isPlaying = _playbackService.isPlaying;
 
     return Container(
+      key: FlowModePage.controlsBarKey,
       padding: EdgeInsets.symmetric(
         horizontal: isLandscape ? 8 : 24,
         vertical: isLandscape ? 16 : 16,
@@ -1498,22 +1544,30 @@ class _FlowModePageState extends State<FlowModePage>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildControlButton(
-                      icon: Icons.autorenew_rounded,
-                      color: _isAutoGenerateEnabled ? AppColors.primary : AppColors.textSecondary,
-                      onTap: () {
-                        setState(() {
-                          _onAutoGenerateToggled(!_isAutoGenerateEnabled);
-                        });
-                      },
-                      label: 'Auto',
+                    // Flexible: at large system text scales the labels are
+                    // what set these buttons' width, and on a narrow phone
+                    // 'Generate' alone could push the row past the screen.
+                    // Loose flex caps them and the labels ellipsize instead.
+                    Flexible(
+                      child: _buildControlButton(
+                        icon: Icons.autorenew_rounded,
+                        color: _isAutoGenerateEnabled ? AppColors.primary : AppColors.textSecondary,
+                        onTap: () {
+                          setState(() {
+                            _onAutoGenerateToggled(!_isAutoGenerateEnabled);
+                          });
+                        },
+                        label: 'Auto',
+                      ),
                     ),
                     _buildPlayButton(isPlaying),
-                    _buildControlButton(
-                      icon: Icons.shuffle_rounded,
-                      color: AppColors.primary,
-                      onTap: () => _generateNewRhythm(),
-                      label: 'Generate',
+                    Flexible(
+                      child: _buildControlButton(
+                        icon: Icons.shuffle_rounded,
+                        color: AppColors.primary,
+                        onTap: () => _generateNewRhythm(),
+                        label: 'Generate',
+                      ),
                     ),
                   ],
                 ),
@@ -1617,6 +1671,9 @@ class _FlowModePageState extends State<FlowModePage>
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: color.withValues(alpha: 0.8),
                   fontSize: (isCompact ? 9.0 : 10.0) * scale,
